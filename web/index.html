@@ -85,9 +85,15 @@
     <div class="well-wrap">
       <canvas id="well"></canvas>
       <div id="inspect"></div>
+      <div id="regions" class="regions" aria-hidden="true"></div>
       <div id="legend" class="legend"></div>
       <div class="well-hint" data-i18n="well.hint"></div>
-      <div class="well-info"><button class="info" data-info="brain" aria-label="info">i</button></div>
+      <div class="well-tools">
+        <button id="btnRegions" class="tool" aria-label="regions"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.7" fill="currentColor"/><path d="M8 .9v2.2M8 12.9v2.2M.9 8h2.2M12.9 8h2.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+        <button id="btnShare" class="tool" aria-label="share"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M6.4 9.6 9.6 6.4M6.9 4.4l1.2-1.2a2.6 2.6 0 1 1 3.7 3.7l-1.2 1.2M9.1 11.6l-1.2 1.2a2.6 2.6 0 1 1-3.7-3.7l1.2-1.2" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg></button>
+        <button class="info" data-info="regions" aria-label="info">i</button>
+        <button class="info" data-info="brain" aria-label="info">i</button>
+      </div>
     </div>
     <div class="channels">
       <h2 class="rail-title"><span data-i18n="rail.channels"></span><button class="info" data-info="channels" aria-label="info">i</button>

@@ -181,6 +181,17 @@ export class BrainView {
   uploadSel() { upload(this.gl, this.bufSel, this.sel); }
   uploadDim() { upload(this.gl, this.bufDim, this.dim); }
 
+  /* world point -> CSS pixels inside the canvas, or null when behind the camera */
+  project(p) {
+    const m = this._mvp || this.mvp();
+    const w = m[3]*p[0] + m[7]*p[1] + m[11]*p[2] + m[15];
+    if (w <= 0) return null;
+    const x = (m[0]*p[0] + m[4]*p[1] + m[8]*p[2] + m[12]) / w;
+    const y = (m[1]*p[0] + m[5]*p[1] + m[9]*p[2] + m[13]) / w;
+    return [(x * 0.5 + 0.5) * this.canvas.clientWidth,
+            (1 - (y * 0.5 + 0.5)) * this.canvas.clientHeight, w];
+  }
+
   /* nearest neuron to a screen point, in screen space */
   pick(px, py) {
     const dpr = Math.min(devicePixelRatio || 1, 2);

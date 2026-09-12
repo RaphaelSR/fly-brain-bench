@@ -19,6 +19,7 @@ const S = {
   worker: null, selected: [], running: false, t: 0, nActive: 0, totalSpikes: 0,
   spikeAccum: null, winCount: null, hz: null, lastReadout: 0, ready: false,
   selKey: null, selVars: null, pickedBehaviour: 'walk', drive: null,
+  regions: null, regionEls: null, showRegions: false, shareKey: null, flyPos: null,
 };
 
 /* ---------------- boot ---------------- */
@@ -31,8 +32,23 @@ const setStatus = (key, frac) => {
 const yieldFrame = () => new Promise(r => setTimeout(r, 0));
 const T = {}; const mark = k => { T[k] = performance.now(); };
 
+/* ---------------- shareable state ---------------- */
+function urlState() { return new URLSearchParams(location.search); }
+function shareUrl() {
+  const u = new URL(location.href);
+  u.search = '';
+  if (S.shareKey) u.searchParams.set(S.shareKey[0], S.shareKey[1]);
+  u.searchParams.set('lang', getLocale());
+  if (S.showRegions) u.searchParams.set('regions', '1');
+  return u.toString();
+}
+function rememberUrl() {
+  try { history.replaceState(null, '', shareUrl()); } catch (_) { /* file:// or blocked */ }
+}
+
 async function boot() {
-  setLocale(detectLocale());
+  const qs = urlState();
+  setLocale(LOCALES[qs.get('lang')] ? qs.get('lang') : detectLocale());
   buildLangPickers();
   applyDom();
   mark('t0');
@@ -74,6 +90,7 @@ async function boot() {
     S.worker.postMessage({ cmd: 'init', N, indptr: conn.indptr, indices: conn.indices, weights: conn.weights },
       [conn.indptr.buffer, conn.indices.buffer, conn.weights.buffer]);
 
+    S.flyPos = pos;
     S.spikeAccum = new Float32Array(N);
     S.winCount = new Float32Array(N);
     S.hz = new Float32Array(N);
@@ -96,7 +113,18 @@ function onWorker(ev) {
     S.ready = true;
     $('#boot').classList.add('done');
     setTimeout(() => $('#boot').remove(), 700);
-    selectPreset(PRESETS[0]);
+    buildRegions(S.flyPos);
+    const qs = urlState();
+    S.showRegions = qs.get('regions') === '1';
+    $('#regions').classList.toggle('on', S.showRegions);
+    $('#btnRegions').classList.toggle('on', S.showRegions);
+    const want = PRESETS.find(p => p.id === qs.get('stim'));
+    const typeName = qs.get('type');
+    if (typeName) {
+      const ti = S.meta.dicts.cell_type.indexOf(typeName);
+      if (ti >= 0) { driveType(ti, typeName, countType(ti)); setRunning(true); return; }
+    }
+    selectPreset(want || PRESETS[0]);
     setRunning(true);
     return;
   }
@@ -119,6 +147,7 @@ function buildLangPickers() {
 }
 function switchLang(code) {
   setLocale(code);
+  rememberUrl();
   for (const id of ['#lang', '#langBoot']) { const s = $(id); if (s) s.value = code; }
   applyDom();
   relabel();
@@ -134,7 +163,9 @@ function relabel() {
     $('#selName').textContent = S.selKey.literal || t(S.selKey.name, S.selVars);
     $('#selWhy').textContent = t(S.selKey.why, S.selVars);
   }
-  buildLegend(); buildBehaviourPicker(); updateTrainUI(); paintInfo();
+  buildLegend(); buildBehaviourPicker(); updateTrainUI(); paintInfo(); paintRegions();
+  $('#btnRegions').title = t('ui.regions');
+  $('#btnShare').title = t('ui.share');
   $('#btnPlay').textContent = t(S.running ? 'tp.pause' : 'tp.run');
   $('#speedOut').textContent = t('tp.perframe', { v: (+$('#speed').value * 0.1).toFixed(1) });
   const ld = $('#loadLabel'); if (ld && ld.dataset.i18n) ld.textContent = t(ld.dataset.i18n);
@@ -188,6 +219,19 @@ function buildUI() {
   $('#btnTrain').addEventListener('click', doTrain);
   $('#btnClear').addEventListener('click', () => { S.dec.clear(); setMode('rules'); updateTrainUI(); });
 
+  $('#btnRegions').addEventListener('click', () => {
+    S.showRegions = !S.showRegions;
+    $('#regions').classList.toggle('on', S.showRegions);
+    $('#btnRegions').classList.toggle('on', S.showRegions);
+    if (S.showRegions) placeRegions();
+    rememberUrl();
+  });
+  $('#btnShare').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(shareUrl()); } catch (_) { /* denied */ }
+    const b = $('#btnShare'); const old = b.textContent;
+    b.textContent = t('ui.copied'); b.classList.add('ok');
+    setTimeout(() => { b.textContent = old; b.classList.remove('ok'); }, 1600);
+  });
   buildLegend(); buildChannels(); buildBehaviourPicker(); updateTrainUI(); bindInfo();
   $('#speedOut').textContent = t('tp.perframe', { v: (+$('#speed').value * 0.1).toFixed(1) });
   schedule();
@@ -261,6 +305,7 @@ function doTrain() {
 
 function selectPreset(p) {
   document.querySelectorAll('.preset').forEach(b => b.classList.toggle('on', b.dataset.id === p.id));
+  S.shareKey = ['stim', p.id];
   applyStimulus(p._idx || resolvePreset(p, S.labels, S.meta.dicts),
     { name: `preset.${p.id}.name`, why: `preset.${p.id}.why` }, null);
 }
@@ -277,6 +322,7 @@ function applyStimulus(idx, keys, vars) {
   $('#selName').textContent = keys.literal || t(keys.name, vars);
   $('#selWhy').textContent = t(keys.why, vars);
   $('#selMeta').innerHTML = t('rail.atrate', { n: idx.length });
+  rememberUrl();
   setRunning(true);
 }
 
@@ -328,8 +374,65 @@ function driveType(ti, name, n) {
   const ct = S.labels.cellType, idx = [];
   for (let k = 0; k < ct.length; k++) if (ct[k] === ti) idx.push(k);
   document.querySelectorAll('.preset').forEach(b => b.classList.remove('on'));
+  S.shareKey = ['type', name];
   applyStimulus(idx, { literal: name, why: n === 1 ? 'ins.customOne' : 'ins.customMany' }, { n, t: name });
   $('#inspect').classList.remove('show');
+}
+
+/* ---------------- anatomical regions ---------------- */
+/* Each label sits at the centre of mass of a real annotated population, so it
+   tracks the brain as you turn it. */
+const REGIONS = [
+  { key: 'region.optic',   pick: (d, L, i) => d.super_class[L.superClass[i]] === 'optic' && d.side[L.side[i]] === 'left' },
+  { key: 'region.optic',   pick: (d, L, i) => d.super_class[L.superClass[i]] === 'optic' && d.side[L.side[i]] === 'right' },
+  { key: 'region.central', pick: (d, L, i) => d.super_class[L.superClass[i]] === 'central' },
+  { key: 'region.sez',     pick: (d, L, i) => d.cell_class[L.cellClass[i]] === 'gustatory' },
+  { key: 'region.al',      pick: (d, L, i) => d.cell_class[L.cellClass[i]] === 'ALPN' },
+  { key: 'region.mb',      pick: (d, L, i) => d.cell_class[L.cellClass[i]] === 'Kenyon_Cell' },
+  { key: 'region.cx',      pick: (d, L, i) => d.cell_class[L.cellClass[i]] === 'CX' },
+  { key: 'region.dn',      pick: (d, L, i) => d.super_class[L.superClass[i]] === 'descending' },
+];
+
+function buildRegions(pos) {
+  const d = S.meta.dicts, L = S.labels;
+  S.regions = REGIONS.map(r => {
+    let n = 0, x = 0, y = 0, z = 0;
+    for (let i = 0; i < L.cellType.length; i++) {
+      if (!r.pick(d, L, i)) continue;
+      x += pos[i*3]; y += pos[i*3+1]; z += pos[i*3+2]; n++;
+    }
+    return n ? { key: r.key, n, p: [x/n, y/n, z/n] } : null;
+  }).filter(Boolean);
+  const box = $('#regions');
+  box.innerHTML = S.regions.map((_, i) => `<span class="reg" data-i="${i}"></span>`).join('');
+  S.regionEls = [...box.querySelectorAll('.reg')];
+  paintRegions();
+}
+function paintRegions() {
+  if (!S.regions) return;
+  S.regions.forEach((r, i) => { S.regionEls[i].textContent = t(r.key); });
+}
+function placeRegions() {
+  if (!S.regions || !S.showRegions) return;
+  // project, then greedily drop labels that would land on one already placed —
+  // nearer ones win, so the front of the brain stays readable
+  const cand = [];
+  for (let i = 0; i < S.regions.length; i++) {
+    const p = S.view.project(S.regions[i].p);
+    if (p) cand.push({ i, x: p[0], y: p[1], d: p[2] });
+    else S.regionEls[i].style.opacity = '0';
+  }
+  cand.sort((a, b) => a.d - b.d);
+  const placed = [];
+  for (const c of cand) {
+    const el = S.regionEls[c.i];
+    const w = el.offsetWidth || 90, h = 15;
+    const clash = placed.some(q => Math.abs(q.x - c.x) < (q.w + w) / 2 + 4 && Math.abs(q.y - c.y) < h + 3);
+    if (clash) { el.style.opacity = '0'; continue; }
+    placed.push({ x: c.x, y: c.y, w });
+    el.style.transform = `translate(${c.x.toFixed(0)}px, ${c.y.toFixed(0)}px)`;
+    el.style.opacity = '1';
+  }
 }
 
 /* ---------------- info popovers ---------------- */
@@ -384,6 +487,7 @@ function loop(now) {
   }
   S.view.uploadAct();
   S.view.draw(dt);
+  placeRegions();
 
   if (S.fly) { S.fly.update(S.drive || {}, dt); S.fly.draw(); }
   if (now - S.lastReadout > 200) { readout(now); S.lastReadout = now; }

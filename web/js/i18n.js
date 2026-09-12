@@ -1,6 +1,18 @@
 /* Three locales. Keys are flat; {n} style placeholders are filled by t(). */
 
 const EN = {
+  "region.optic": "Optic lobe",
+  "region.central": "Central brain",
+  "region.sez": "Taste centre",
+  "region.al": "Antennal lobe · smell",
+  "region.mb": "Mushroom body · memory",
+  "region.cx": "Central complex · navigation",
+  "region.dn": "Descending · to the body",
+  "ui.regions": "Regions",
+  "ui.copied": "Link copied",
+  "ui.share": "Copy link to this view",
+  "info.regions.t": "Anatomical regions",
+  "info.regions.b": "Labels sit at the real centre of mass of each population, so they move with the brain as you turn it. The two optic lobes take 56% of all neurons — vision is most of what a fly's brain does. Taste arrives at the bottom, smell at the antennal lobes, and the descending neurons that command the body leave from the back.",
   'info.stimulate.t': "Choosing a stimulus",
   'info.stimulate.b': "Each entry drives a real, annotated population of sensory neurons with random pulses at 150 Hz — the electrical equivalent of touching sugar to the mouthparts. The number is how many neurons that is. Nothing downstream is scripted: activity spreads along the measured wiring or dies out. You can also click any neuron in the viewport to drive its whole cell type.",
   'info.brain.t': "The viewport",
@@ -145,6 +157,18 @@ const EN = {
 };
 
 const PT = {
+  "region.optic": "Lobo óptico",
+  "region.central": "Cérebro central",
+  "region.sez": "Centro do paladar",
+  "region.al": "Lobo antenal · olfato",
+  "region.mb": "Corpo pedunculado · memória",
+  "region.cx": "Complexo central · navegação",
+  "region.dn": "Descendentes · para o corpo",
+  "ui.regions": "Regiões",
+  "ui.copied": "Link copiado",
+  "ui.share": "Copiar link desta vista",
+  "info.regions.t": "Regiões anatômicas",
+  "info.regions.b": "Os rótulos ficam no centro de massa real de cada população, então giram junto com o cérebro. Os dois lobos ópticos ocupam 56% de todos os neurônios — visão é a maior parte do que o cérebro de uma mosca faz. O paladar chega embaixo, o olfato nos lobos antenais, e os neurônios descendentes que comandam o corpo saem por trás.",
   'info.stimulate.t': "Escolher um estímulo",
   'info.stimulate.b': "Cada item estimula uma população real e anotada de neurônios sensoriais com pulsos aleatórios a 150 Hz — o equivalente elétrico de encostar açúcar na boca. O número é quantos neurônios são. Nada a jusante é roteirizado: a atividade se espalha pela fiação medida ou morre. Você também pode clicar em qualquer neurônio na tela para estimular todo o tipo celular dele.",
   'info.brain.t': "A janela",
@@ -289,6 +313,18 @@ const PT = {
 };
 
 const ES = {
+  "region.optic": "Lóbulo óptico",
+  "region.central": "Cerebro central",
+  "region.sez": "Centro del gusto",
+  "region.al": "Lóbulo antenal · olfato",
+  "region.mb": "Cuerpo pedunculado · memória",
+  "region.cx": "Complejo central · navegación",
+  "region.dn": "Descendentes · al cuerpo",
+  "ui.regions": "Regiones",
+  "ui.copied": "Enlace copiado",
+  "ui.share": "Copiar enlace de esta vista",
+  "info.regions.t": "Regiones anatómicas",
+  "info.regions.b": "Las etiquetas están en el centro de masa real de cada población, así que giran con el cerebro. Los dos lóbulos ópticos ocupan el 56% de todas las neuronas — la visión es la mayor parte de lo que hace el cerebro de una mosca. El gusto llega abajo, el olfato a los lóbulos antenales, y las neuronas descendentes que mandan al cuerpo salen por detrás.",
   'info.stimulate.t': "Elegir un estímulo",
   'info.stimulate.b': "Cada entrada estimula una población real y anotada de neuronas sensoriales con pulsos aleatorios a 150 Hz — el equivalente eléctrico de apoyar azúcar en la boca. El número es cuántas neuronas son. Nada aguas abajo está guionizado: la actividad se propaga por el cableado medido o se apaga. También puedes hacer clic en cualquier neurona de la pantalla para estimular todo su tipo celular.",
   'info.brain.t': "La ventana",

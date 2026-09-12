@@ -78,6 +78,17 @@ Every panel carries an **info button** explaining what it shows and, where it
 matters, which half is measured and which half is engineering — in all three
 languages.
 
+**Anatomical labels** sit at the real centre of mass of each population and track
+the brain as you turn it: both optic lobes, the central brain, the taste centre,
+the antennal lobes, the mushroom body, the central complex, and where the
+descending neurons leave for the body. Labels that would collide are dropped,
+nearest first.
+
+**The view is shareable.** The URL carries the stimulus, the language and whether
+labels are on, so a link opens on exactly what you were looking at:
+`?stim=loom&lang=pt&regions=1`, or `?type=LPLC2` for a cell type you picked
+yourself.
+
 ## Teaching the decoder
 
 You can fit the readout yourself. Run a stimulus, pick what the fly should be doing,

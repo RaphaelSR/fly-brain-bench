@@ -323,6 +323,33 @@ main{grid-template-columns:var(--rail) minmax(0,1fr) var(--railR)}
 :root{--railR:340px}
 #flywell{height:250px}
 
+/* ---------- anatomical region labels ---------- */
+.regions{position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .25s}
+.regions.on{opacity:1}
+.reg{
+  position:absolute; left:0; top:0; margin:-9px 0 0 0;
+  font-family:var(--fm); font-size:9.5px; letter-spacing:.05em; white-space:nowrap;
+  color:var(--ink2); background:rgba(9,15,18,.74); border:1px solid var(--line);
+  border-radius:3px; padding:2px 6px; transform-origin:0 0; opacity:0;
+  transition:opacity .2s;
+}
+.reg::before{
+  content:''; position:absolute; left:-4px; top:50%; width:4px; height:4px; margin-top:-2px;
+  border-radius:50%; background:var(--ach);
+}
+
+/* ---------- viewport tools ---------- */
+.well-tools{position:absolute; right:14px; top:14px; display:flex; flex-direction:column; gap:6px}
+.tool{
+  width:22px; height:22px; display:grid; place-items:center; border-radius:var(--rs);
+  border:1px solid var(--line2); color:var(--ink3);
+  background:rgba(10,16,19,.8); backdrop-filter:blur(5px); transition:.14s;
+}
+.tool:hover{border-color:var(--ach); color:var(--ach)}
+.tool.on{border-color:var(--ach); color:#150E03; background:var(--ach)}
+.tool.ok{border-color:var(--dop); color:var(--dop); width:auto; padding:0 8px; font-size:10px}
+.well-tools .info{margin-left:0}
+
 /* ---------- responsive (must stay last) ---------- */
 @media (max-width:1180px){
   :root{--rail:214px; --railR:256px}
@@ -362,6 +389,8 @@ main{grid-template-columns:var(--rail) minmax(0,1fr) var(--railR)}
     top:10px; right:10px; bottom:auto; left:10px;
     flex-direction:row; flex-wrap:wrap; gap:4px 11px; padding:7px 9px;
   }
+  .well-tools{right:10px; top:10px}
+  .reg{font-size:9px}
   .well-hint{font-size:9.5px; right:10px; bottom:8px; left:10px; text-align:center; max-width:none}
   #inspect{right:10px; top:auto; bottom:34px; width:min(214px,calc(100% - 20px))}
 
