@@ -209,6 +209,59 @@ main > *{min-width:0}
 .cmp i{font-style:normal}
 .ex-src{margin:20px 0 0; font-size:11px; color:var(--ink3); border-top:1px solid var(--line); padding-top:13px}
 
+/* ---------- dashboard layout ---------- */
+main{grid-template-columns:var(--rail) minmax(0,1fr) var(--railR)}
+.centre{display:grid; grid-template-rows:minmax(0,1fr) auto; min-width:0; min-height:0}
+.channels{background:var(--panel); border-top:1px solid var(--line); padding:10px 14px 12px}
+.channels .rail-title{padding:0; margin-bottom:8px}
+#chanBody{display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); gap:4px 18px}
+.chan{display:grid; grid-template-columns:1fr 54px 26px; align-items:center; gap:8px}
+.c-name{display:flex; flex-direction:column; line-height:1.2; font-size:11.5px; color:var(--ink2); min-width:0}
+.c-name i{font-style:normal; font-family:var(--fm); font-size:9px; color:var(--ink3);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.c-bar{height:4px; background:var(--line); border-radius:3px; overflow:hidden}
+.c-bar em{display:block; height:100%; width:0; border-radius:3px;
+  background:linear-gradient(90deg,var(--dop),var(--ach)); transition:width .18s}
+.c-hz{font-size:10px; color:var(--ink3); text-align:right}
+
+/* right rail panels */
+.rail.right{display:flex; flex-direction:column; gap:0; padding:0}
+.panel{padding:13px 15px; border-bottom:1px solid var(--line)}
+.panel.grow{flex:1; min-height:0; overflow-y:auto; border-bottom:0}
+.panel .rail-title{padding:0}
+.rail-title.mt{margin-top:15px}
+.fly-panel{display:flex; flex-direction:column; gap:8px}
+#flywell{width:100%; height:186px; display:block; border-radius:var(--rs);
+  background:var(--well); touch-action:none; cursor:grab}
+#flywell:active{cursor:grabbing}
+.beh{color:var(--ach); text-transform:lowercase; font-size:11px}
+.tiny{font-size:11px; color:var(--ink2); margin:0 0 8px; line-height:1.45}
+.tiny.note{color:var(--ink3); border-top:1px solid var(--line); padding-top:8px; margin-top:10px; margin-bottom:0}
+.tiny.note strong{color:var(--ink2)}
+
+/* behaviour picker + training */
+.behave-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin-bottom:9px}
+.beh-btn{padding:6px 4px; border:1px solid var(--line); border-radius:var(--rs);
+  font-size:10px; color:var(--ink3); text-align:center; line-height:1.2; transition:.13s}
+.beh-btn:hover{border-color:var(--line2); color:var(--ink2)}
+.beh-btn.on{border-color:var(--ach); color:var(--ink); background:var(--raise)}
+.train-row{display:flex; gap:6px}
+.primary.sm,.ghost.sm{padding:6px 10px; font-size:11px; border-radius:var(--rs)}
+.primary.sm{flex:1}
+.primary:disabled{opacity:.4; cursor:not-allowed}
+.seg{display:inline-flex; border:1px solid var(--line); border-radius:var(--rs); overflow:hidden}
+.seg button{padding:3px 8px; font-size:10px; color:var(--ink3); transition:.13s}
+.seg button.on{background:var(--raise); color:var(--ach)}
+.seg button:disabled{opacity:.35; cursor:not-allowed}
+
+/* language picker */
+.lang{background:var(--panel2); color:var(--ink2); border:1px solid var(--line2);
+  border-radius:var(--rs); padding:6px 8px; font:inherit; font-size:12px; cursor:pointer}
+.lang:hover{border-color:var(--ach)}
+.boot-top{display:flex; justify-content:space-between; align-items:center; gap:14px}
+.k-body{border-left-color:var(--dop)} .k-body .k{background:var(--dop)}
+.ex-card code{font-family:var(--fm); font-size:11.5px; color:var(--ach)}
+
 /* ---------- responsive ---------- */
 
 /* responding rows carry their class under the name */
@@ -282,7 +335,11 @@ main > *{min-width:0}
   #inspect{right:10px; top:auto; bottom:34px; width:min(214px,calc(100% - 20px))}
 
   .rail{overflow:visible}
-  .rail.right{border-left:0; border-top:1px solid var(--line); padding-top:16px; display:block}
+  .rail.right{border-left:0; border-top:1px solid var(--line); display:block; padding:0}
+  .centre{grid-template-rows:auto auto}
+  #chanBody{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  #flywell{height:210px}
+  .panel.grow{overflow:visible}
   .resp-wrap{overflow:visible; max-height:none}
   .transport{flex-wrap:wrap; gap:14px 20px; padding:12px 13px}
   .slider input{width:96px}

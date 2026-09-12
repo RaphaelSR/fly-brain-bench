@@ -117,7 +117,11 @@ self.onmessage = (ev) => {
     reset();
     return;
   }
-  if (m.cmd === 'run')   { running = m.on; if (running) tick(); return; }
+  if (m.cmd === 'run') {
+    const was = running; running = m.on;
+    if (running && !was) tick();   // never start a second tick chain
+    return;
+  }
   if (m.cmd === 'speed') { speed = m.value; return; }
   if (m.cmd === 'reset') { reset(); emit(); return; }
 };

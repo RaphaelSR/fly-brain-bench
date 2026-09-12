@@ -1,8 +1,10 @@
 # Fly Brain Bench
 
-Stimulate a population of neurons in a real fruit fly's brain and watch the spikes
-spread through 2.7 million measured connections — in a browser tab, at 60 fps, with
-no dependencies.
+Stimulate a population of neurons in a real fruit fly's brain, watch the spikes
+spread through 2.7 million measured connections, and see the body they drive — in a
+browser tab, at 60 fps, with no dependencies.
+
+Available in English, Portuguese and Spanish.
 
 **[Open the bench →](https://raphaelsr.github.io/fly-brain-bench/)**
 
@@ -30,6 +32,80 @@ inputs are five biophysical constants and a wiring diagram somebody measured.
 | `LB3` — sugar taste bristles | `MN10`, `MNx01` — proboscis motor neurons | This is the published benchmark of the model this page implements: taste in, feeding motion out |
 | `LPLC2` — looming detectors | `DNp01` — the giant fibre | `DNp01` is *the* escape-triggering neuron in the fly. Nothing here aims at it; the wiring gets there by itself |
 | `R7`/`R8` — colour photoreceptors | `Dm9`, `Mi15`, `Tm20` — medulla interneurons | Both optic lobes light up in the correct anatomical order |
+
+---
+
+## The body
+
+The connectome stops at the neck. To move a fly you have to decide what descending
+neuron activity *means*, and that decision is engineering, not measurement — the
+page labels it as such.
+
+What *is* measured is which descending neurons exist and what each one does. Those
+are named, well-studied channels, and the decoder reads them directly:
+
+| channel | cells | what it does in a real fly |
+|---|---|---|
+| `DNp01` | 2 | The giant fibre. One spike triggers the escape takeoff. |
+| `DNa02` | 2 | Steering; the left/right imbalance sets turn direction. |
+| `DNp09` | 2 | Freezing and stopping. |
+| `MDN` | 4 | The moonwalker — drives backward walking. |
+| `DNp10`, `DNp07` | 4 | Leg extension for landing. |
+| `MN10`, `MNx01`, `MNx03` | 8 | Proboscis motor neurons — extend to feed. |
+
+The fly itself is procedural geometry with a real tripod gait (L1 R2 L3 alternating
+with R1 L2 R3), no mesh and no library.
+
+Two results worth trying:
+
+- **Sugar** drives the proboscis channel and the fly extends to feed.
+- **Looming** drives `DNp01` to ~200 Hz and the fly takes off. Nothing aims at the
+  giant fibre; the wiring reaches it on its own.
+
+## Teaching the decoder
+
+You can fit the readout yourself. Run a stimulus, pick what the fly should be doing,
+capture it a few times, repeat for other stimuli, then train. It fits a multinomial
+logistic regression over 58 descending/motor cell-type rates, in the browser, in
+about a second.
+
+Feature types were not hand-picked: `tools/21_feature_select.py` runs every preset
+through the model and keeps the cell types that actually respond and discriminate.
+`DNp103` and `DNp01` come out top for looming, `CB0700` for sugar, `DNg84` for touch.
+
+In testing, four lessons (sugar→feed, looming→escape, touch→groom, food→walk) at
+four captures each reached 100% on its own examples, and generalised: pheromone,
+never shown during training, was classified as walking — the same behaviour as the
+other odour.
+
+**This trains the readout, not the brain.** No synapse changes. Which brings us to:
+
+## What I tried that does not work
+
+The fly has a real learning centre in this connectome — the mushroom body, with
+5,177 Kenyon cells, 96 MBONs, 331 dopaminergic neurons, and 21,438 KC→MBON synapses
+that survive pruning. Real flies learn odours by dopaminergic depression of exactly
+those synapses. I implemented it. It does not produce odour learning, for a reason
+worth writing down:
+
+1. **The model does not discriminate odours.** Driving `ORN_DM1`, `ORN_DA1` and
+   `ORN_VA1v` — completely different odours — activates 60.7% of Kenyon cells in
+   every case, with **99.3% overlap**. Real Kenyon-cell coding is ~5% and specific.
+2. **Pruning is not the cause.** The full unpruned model is worse: 74.9% active,
+   99.6% overlap. APL, the inhibitory neuron that sparsifies the code, survives
+   pruning at 99.3% — its contacts onto Kenyon cells have a median of 17 synapses.
+3. **The missing piece is physiology, not anatomy.** Adding APL-style *divisive*
+   feedback inhibition (`tools/16_sparsify.py`) recovers realistic sparseness — gain
+   0.12 gives 5.4% of Kenyon cells active and drops MBON rates from 145 Hz to 39 Hz —
+   but overlap only falls to ~70%, and MBONs are swamped anyway: during an odour they
+   receive **−513,232** of non-olfactory drive against **+33,960** from the odour
+   pathway. Isolating the mushroom body from the rest of the brain does not fix it.
+
+So conditioning on this model would be a lie: training "avoid odour A" would change
+the response to odour B just as much, because to this model A and B are nearly the
+same pattern. A uniform 0.275 mV per synapse cannot express the physiology that makes
+Kenyon-cell coding sparse. Reproduce any of it with `tools/13_sparsity.py`,
+`tools/16_sparsify.py`, `tools/17_train.py` and `tools/19_isolated_mb.py`.
 
 ---
 
@@ -161,6 +237,9 @@ web/
     gl.js           WebGL2 point cloud, ~230 lines, no library
     data.js         gzip + LEB128 + CSR reconstruction
     presets.js      stimulus groups, resolved against real cell-type annotations
+    fly.js          procedural articulated fly, tripod gait, own WebGL2 context
+    decoder.js      descending-neuron channels + the trainable logistic readout
+    i18n.js         English / Portuguese / Spanish
     app.js          UI and the frame loop
   data/             8.4 MB of packed connectome
 tools/              Python pipeline: fetch, measure, validate, pack
