@@ -346,4 +346,7 @@ function schedule() {
 
 const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+/* exposed for benchmarking and debugging from the console */
+window.bench = S;
+
 boot();

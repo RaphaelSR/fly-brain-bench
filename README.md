@@ -61,19 +61,32 @@ JavaScript — activity in this model is extremely sparse.
 
 ### Measured performance
 
-Chrome, Apple Silicon, full 138,639-neuron brain, 2,650 photoreceptors driven at 150 Hz:
+Chrome, Apple Silicon, full 138,639-neuron brain with 2,700,513 connections:
 
 | | |
 |---|---|
-| render | **60 fps** |
-| simulation | **348 ms of biological time per wall-clock second** (0.35× real time) |
-| boot, cached | **227 ms** total — 51 ms gunzip, 33 ms to rebuild the CSR |
-| transfer | **8.4 MB** gzipped |
+| render, all 138,639 points | **0.11 ms** per frame |
+| per-frame activity decay (main thread) | **0.21 ms** |
+| → main thread total | ~0.3 ms/frame, so **60 fps** with room to spare |
+| boot, cached | **227 ms** — 51 ms gunzip, 33 ms to rebuild the CSR |
+| transfer | **7.9 MB** gzipped |
+
+Simulation throughput is not a single number, because the active-set scheduler
+makes cost track *activity* rather than neuron count:
+
+| neurons holding charge | biological time per wall second |
+|---:|---:|
+| ~6,000 | **348 ms** (0.35× real time) |
+| ~48,000 | **190 ms** (0.19× real time) |
+
+Roughly 126,000 simulated spikes per wall-clock second at the upper end. Running
+slower than real time is fine here, and arguably better — you want to *watch* the
+activity spread.
 
 For scale: the native Rust + Metal engine [flyBrain](https://github.com/mehrantsi/flyBrain)
 reaches 2.6× real time on an M3 Max and ships a 149 MB pack requiring WebGPU. This
-is about 7.5× slower than that, in plain JavaScript, with no WASM, no GPU compute,
-and no dependencies.
+is roughly an order of magnitude slower, in plain JavaScript, with no WASM, no GPU
+compute, and no dependencies — for 4.5% of the download.
 
 ---
 
