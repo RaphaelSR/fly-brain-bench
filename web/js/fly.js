@@ -13,23 +13,105 @@ const VS = `#version 300 es
 precision highp float;
 in vec3 aPos; in vec3 aNrm;
 uniform mat4 uVP; uniform mat4 uModel; uniform mat3 uNormal;
-out vec3 vN; out vec3 vP;
-void main(){ vec4 wp = uModel * vec4(aPos,1.0); vP = wp.xyz; vN = uNormal * aNrm;
+out vec3 vN; out vec3 vP; out vec3 vObj;
+void main(){ vec4 wp = uModel * vec4(aPos,1.0); vP = wp.xyz; vObj = aPos; vN = uNormal * aNrm;
   gl_Position = uVP * wp; }`;
 
 const FS = `#version 300 es
 precision highp float;
-in vec3 vN; in vec3 vP;
+in vec3 vN; in vec3 vP; in vec3 vObj;
 uniform vec3 uColor; uniform float uAlpha; uniform float uEmit;
+uniform float uShine; uniform int uPattern; uniform vec3 uEye;
 out vec4 frag;
+
+/* three cosines at 60 degrees tile the plane hexagonally — close enough to the
+   ommatidial lattice of a compound eye at this scale */
+float hexLattice(vec2 p){
+  float a = cos(p.x * 6.2831853);
+  float b = cos((p.x * 0.5 + p.y * 0.8660254) * 6.2831853);
+  float c = cos((p.x * 0.5 - p.y * 0.8660254) * 6.2831853);
+  return (a + b + c) / 3.0;
+}
+
 void main(){
   vec3 n = normalize(vN);
+  vec3 V = normalize(uEye - vP);
   vec3 key = normalize(vec3(0.42, 0.82, 0.55));
-  vec3 rim = normalize(vec3(-0.62, 0.20, -0.52));
+  vec3 fill = normalize(vec3(-0.62, 0.28, -0.52));
   float d = max(dot(n, key), 0.0);
-  float r = pow(max(dot(n, rim), 0.0), 2.0);
-  vec3 c = uColor * (0.38 + 1.25 * d) + vec3(0.95,0.76,0.42) * r * 0.5 + uColor * uEmit * 2.0;
+  float f = max(dot(n, fill), 0.0);
+  float spec = pow(max(dot(n, normalize(key + V)), 0.0), 26.0) * uShine;
+  float fres = pow(1.0 - max(dot(n, V), 0.0), 3.0);
+
+  vec3 base = uColor;
+  if (uPattern == 1) {                     // compound eye
+    vec3 en = normalize(vObj);
+    vec2 uv = vec2(atan(en.x, en.z), asin(clamp(en.y, -1.0, 1.0))) * 7.5;
+    float cell = hexLattice(uv);
+    base *= 0.72 + 0.45 * smoothstep(-0.1, 0.9, cell);
+    spec += pow(max(cell, 0.0), 8.0) * 0.30;
+  } else if (uPattern == 2) {              // abdominal banding
+    float band = smoothstep(0.18, 0.42, abs(fract(vObj.z * 2.2 + 0.25) - 0.5));
+    base *= 0.55 + 0.60 * band;
+  }
+
+  vec3 c = base * (0.34 + 1.15 * d + 0.32 * f)
+         + vec3(1.0, 0.88, 0.62) * spec
+         + base * uEmit * 2.0
+         + vec3(0.32, 0.46, 0.52) * fres * 0.28;
   frag = vec4(c, uAlpha);
+}`;
+
+/* wings get their own program: a translucent membrane with real venation and a
+   thin-film sheen, because at this size a plain alpha quad reads as nothing */
+const WVS = `#version 300 es
+precision highp float;
+in vec3 aPos; in vec2 aUV;
+uniform mat4 uVP; uniform mat4 uModel;
+out vec2 vUV; out vec3 vP; out vec3 vNw;
+void main(){
+  vec4 wp = uModel * vec4(aPos, 1.0);
+  vP = wp.xyz; vUV = aUV;
+  vNw = normalize(cross(vec3(uModel[0]), vec3(uModel[2])));
+  gl_Position = uVP * wp;
+}`;
+
+const WFS = `#version 300 es
+precision highp float;
+in vec2 vUV; in vec3 vP; in vec3 vNw;
+uniform vec3 uEye; uniform float uAlpha;
+out vec4 frag;
+
+/* Drosophila has five longitudinal veins that fan towards the margin, plus two
+   cross-veins. These positions are eyeballed from a wing plate, not measured. */
+float veins(vec2 uv){
+  float u = uv.x, v = uv.y;
+  float k = 0.0;
+  float fan = mix(0.35, 1.0, u);
+  float pos[5] = float[5](-0.72, -0.34, 0.04, 0.42, 0.78);
+  for (int i = 0; i < 5; i++){
+    float c = pos[i] * fan;
+    float wdt = 0.030 + 0.012 * float(i);
+    k = max(k, smoothstep(wdt, 0.0, abs(v - c)) * smoothstep(0.02, 0.12, u));
+  }
+  // the two cross-veins
+  k = max(k, smoothstep(0.020, 0.0, abs(u - 0.46)) * smoothstep(0.55, 0.15, abs(v)) * 0.9);
+  k = max(k, smoothstep(0.020, 0.0, abs(u - 0.70)) * smoothstep(0.42, 0.10, abs(v + 0.15)) * 0.8);
+  // thickened costa along the leading edge
+  k = max(k, smoothstep(0.045, 0.0, abs(v - 0.92 * fan)) * 1.1);
+  return clamp(k, 0.0, 1.0);
+}
+
+void main(){
+  vec3 V = normalize(uEye - vP);
+  float fres = pow(1.0 - abs(dot(normalize(vNw), V)), 2.2);
+  float vn = veins(vUV);
+  // thin-film interference: hue slides with viewing angle
+  vec3 sheen = 0.5 + 0.5 * cos(6.2831853 * (fres * 2.6 + vec3(0.0, 0.33, 0.67)));
+  vec3 membrane = vec3(0.74, 0.82, 0.88) + sheen * 0.30 * fres;
+  vec3 c = mix(membrane, vec3(0.42, 0.35, 0.26), vn * 0.85);
+  float a = uAlpha * (0.42 + 0.58 * fres) + vn * 0.55;
+  frag = vec4(c * (0.65 + 0.9 * fres + vn * 0.5), clamp(a, 0.0, 0.95));
 }`;
 
 /* ground: a grid whose lines come from world position, so the fly visibly travels */
@@ -84,17 +166,19 @@ function sphere(seg = 16, ring = 12) {
   return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), idx: new Uint16Array(idx) };
 }
 function wingMesh() {
-  const pos = [0, 0, 0], nrm = [0, 1, 0], idx = [];
-  const n = 24;
+  const pos = [], uv = [], idx = [];
+  const n = 30;
   for (let i = 0; i <= n; i++) {
     const t = i / n;
-    const z = Math.sin(t * Math.PI) * 0.26 * (1 - 0.42 * t);
-    pos.push(t, 0, z); nrm.push(0, 1, 0);
-    pos.push(t, 0, -z * 0.5); nrm.push(0, 1, 0);
+    // Drosophila wing outline: widens fast, then tapers to a rounded tip
+    const half = Math.sin(Math.pow(t, 0.72) * Math.PI) * 0.30 * (1 - 0.30 * t) + 0.012;
+    pos.push(t, 0, half * 1.00); uv.push(t, 1);
+    pos.push(t, 0, -half * 0.62); uv.push(t, -1);
   }
-  for (let i = 0; i < n; i++) { const a = 1 + i * 2, b = a + 2; idx.push(a, b, a + 1, a + 1, b, b + 1); }
-  return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), idx: new Uint16Array(idx) };
+  for (let i = 0; i < n; i++) { const a = i * 2, b = a + 2; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+  return { pos: new Float32Array(pos), uv: new Float32Array(uv), idx: new Uint16Array(idx) };
 }
+
 function quad() {
   return { pos: new Float32Array([-1,0,-1, 1,0,-1, 1,0,1, -1,0,1]),
            nrm: new Float32Array([0,1,0, 0,1,0, 0,1,0, 0,1,0]),
@@ -169,13 +253,20 @@ export class FlyView {
     this.gl = gl; this.canvas = canvas;
     this.prog = link(gl, VS, FS);
     this.gprog = link(gl, GVS, GFS);
+    this.wprog = link(gl, WVS, WFS);
     this.sphere = mesh(gl, this.prog, sphere());
-    this.wing = mesh(gl, this.prog, wingMesh());
+    this.wing = mesh(gl, this.wprog, wingMesh());
     this.ground = mesh(gl, this.gprog, quad());
     this.u = {
       VP: gl.getUniformLocation(this.prog,'uVP'), model: gl.getUniformLocation(this.prog,'uModel'),
       normal: gl.getUniformLocation(this.prog,'uNormal'), color: gl.getUniformLocation(this.prog,'uColor'),
       alpha: gl.getUniformLocation(this.prog,'uAlpha'), emit: gl.getUniformLocation(this.prog,'uEmit'),
+      shine: gl.getUniformLocation(this.prog,'uShine'), pattern: gl.getUniformLocation(this.prog,'uPattern'),
+      eye: gl.getUniformLocation(this.prog,'uEye'),
+    };
+    this.wu = {
+      VP: gl.getUniformLocation(this.wprog,'uVP'), model: gl.getUniformLocation(this.wprog,'uModel'),
+      eye: gl.getUniformLocation(this.wprog,'uEye'), alpha: gl.getUniformLocation(this.wprog,'uAlpha'),
     };
     this.gu = { VP: gl.getUniformLocation(this.gprog,'uVP'), origin: gl.getUniformLocation(this.gprog,'uOrigin') };
 
@@ -312,18 +403,31 @@ export class FlyView {
 
     gl.useProgram(this.prog);
     gl.uniformMatrix4fv(this.u.VP, false, vp);
-    const part = (mObj, m, color, alpha = 1, emit = 0) => {
+    gl.uniform3fv(this.u.eye, eye);
+    const part = (mObj, m, color, alpha = 1, emit = 0, shine = 0.25, pattern = 0) => {
       gl.uniformMatrix4fv(this.u.model, false, m);
       gl.uniformMatrix3fv(this.u.normal, false, M.normalOf(m));
       gl.uniform3fv(this.u.color, color);
       gl.uniform1f(this.u.alpha, alpha); gl.uniform1f(this.u.emit, emit);
+      gl.uniform1f(this.u.shine, shine); gl.uniform1i(this.u.pattern, pattern);
       gl.bindVertexArray(mObj.vao);
       gl.drawElements(gl.TRIANGLES, mObj.count, gl.UNSIGNED_SHORT, 0);
+    };
+    const wingPart = (m, alpha) => {
+      gl.useProgram(this.wprog);
+      gl.uniformMatrix4fv(this.wu.VP, false, vp);
+      gl.uniformMatrix4fv(this.wu.model, false, m);
+      gl.uniform3fv(this.wu.eye, eye);
+      gl.uniform1f(this.wu.alpha, alpha);
+      gl.bindVertexArray(this.wing.vao);
+      gl.drawElements(gl.TRIANGLES, this.wing.count, gl.UNSIGNED_SHORT, 0);
+      gl.useProgram(this.prog);
     };
 
     // contact shadow, fading as she lifts off
     const sh = Math.max(0, 1 - s.lift * 2.2);
     if (sh > 0.02) {
+      gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       const m = M.mul(M.translate([s.pos[0], 0.004, s.pos[2]]), M.scaleRot([1.05 + s.lift, 0.001, 1.5 + s.lift]));
       part(this.sphere, m, [0.0, 0.0, 0.0], 0.42 * sh);
     }
@@ -341,13 +445,13 @@ export class FlyView {
     for (let k = 0; k < 3; k++) {
       const f = k / 2;
       part(this.sphere, local(M.mul(M.translate([0, 0.012 - f * 0.012, -0.20 - k * 0.155]),
-        M.scaleRot([0.235 - f * 0.075, 0.215 - f * 0.07, 0.20 - f * 0.03]))), COL.abdomen);
+        M.scaleRot([0.235 - f * 0.075, 0.215 - f * 0.07, 0.20 - f * 0.03]))), COL.abdomen, 1, 0, 0.30, 2);
     }
-    part(this.sphere, local(M.mul(M.translate([0, 0.02, 0.03]), M.scaleRot([0.255, 0.245, 0.34]))), COL.thorax);
+    part(this.sphere, local(M.mul(M.translate([0, 0.02, 0.03]), M.scaleRot([0.255, 0.245, 0.34]))), COL.thorax, 1, 0, 0.45);
     part(this.sphere, local(M.mul(M.translate([0, headY, 0.30]), M.scaleRot([0.215, 0.205, 0.185]))), COL.head);
     for (const sd of [-1, 1]) {
       part(this.sphere, local(M.mul(M.translate([sd * 0.085, headY + 0.02, 0.325]),
-        M.scaleRot([0.12, 0.155, 0.135]))), COL.eye, 1, 0.22);
+        M.scaleRot([0.125, 0.16, 0.14]))), COL.eye, 1, 0.14, 0.8, 1);
       // antenna: a short pedicel and the arista
       const a0 = [sd * 0.045, headY - 0.03, 0.40], a1 = [sd * 0.075, headY - 0.10, 0.45];
       part(this.sphere, M.bone(L2W(a0), L2W(a1), 0.030), COL.antenna);
@@ -359,6 +463,18 @@ export class FlyView {
     // proboscis, extending straight down from the mouthparts
     const pl = 0.05 + s.proboscis * 0.26;
     part(this.sphere, M.bone(L2W([0, headY - 0.10, 0.31]), L2W([0, headY - 0.10 - pl, 0.31]), 0.075), COL.proboscis);
+
+    // macrochaetae — the large bristles are a signature of the thorax and head
+    const BRISTLE = [
+      [ 0.085, 0.145, -0.24, 0.20, 0.30, -0.55],  [-0.085, 0.145, -0.24, -0.20, 0.30, -0.55],
+      [ 0.045, 0.160, -0.14, 0.13, 0.33, -0.34],  [-0.045, 0.160, -0.14, -0.13, 0.33, -0.34],
+      [ 0.115, 0.120,  0.10, 0.26, 0.28,  0.16],  [-0.115, 0.120,  0.10, -0.26, 0.28,  0.16],
+      [ 0.075, 0.150,  0.34, 0.16, 0.30,  0.48],  [-0.075, 0.150,  0.34, -0.16, 0.30,  0.48],
+    ];
+    for (const b of BRISTLE) {
+      part(this.sphere, M.bone(L2W([b[0], b[1] + headY * 0.3, b[2]]), L2W([b[3], b[4] + headY * 0.3, b[5]]), 0.016),
+        COL.bristle, 1, 0, 0.1);
+    }
 
     // legs, solved by two-link IK onto the foot targets
     for (let i = 0; i < LEGS.length; i++) {
@@ -385,6 +501,7 @@ export class FlyView {
                      knee[2] + (foot[2] - knee[2]) * 0.82];
       part(this.sphere, M.bone(knee, ankle, 0.044), COL.tibia);
       part(this.sphere, M.bone(ankle, foot, 0.030), COL.tarsus);
+      part(this.sphere, M.mul(M.translate(foot), M.scaleRot([0.042, 0.042, 0.042])), COL.bristle, 1, 0, 0.4);
     }
 
     // wings last, translucent, with a tilted stroke plane
@@ -396,15 +513,15 @@ export class FlyView {
     for (const sd of [-1, 1]) {
       const root = [sd * 0.10, 0.115, 0.00];
       // at rest the wings lie back along the abdomen; in flight they sweep out and up
-      const restTip   = [sd * 0.085, 0.085, -0.66];
-      const flightTip = [sd * (0.24 + Math.cos(stroke) * 0.40),
-                         0.12 + Math.sin(stroke) * 0.34 + dev,
-                         -0.30 + Math.abs(stroke) * 0.16];
+      const restTip   = [sd * 0.090, 0.090, -0.82];
+      const flightTip = [sd * (0.30 + Math.cos(stroke) * 0.52),
+                         0.13 + Math.sin(stroke) * 0.42 + dev,
+                         -0.34 + Math.abs(stroke) * 0.20];
       const tip = [restTip[0] + (flightTip[0] - restTip[0]) * fly,
                    restTip[1] + (flightTip[1] - restTip[1]) * fly,
                    restTip[2] + (flightTip[2] - restTip[2]) * fly];
       const m = wingMatrix(L2W(root), L2W(tip), L2W([root[0] + sd * 0.12, root[1] + 0.30, root[2]]), sd);
-      part(this.wing, m, COL.wing, 0.22 + fly * 0.16);
+      wingPart(m, 0.50 + fly * 0.22);
     }
     gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
@@ -447,7 +564,8 @@ function wingMatrix(root, tip, upRef, sd) {
 function mesh(gl, prog, m) {
   const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
   const attrs = [['aPos', m.pos, 3]];
-  if (gl.getAttribLocation(prog, 'aNrm') >= 0) attrs.push(['aNrm', m.nrm, 3]);
+  if (m.nrm) attrs.push(['aNrm', m.nrm, 3]);
+  if (m.uv) attrs.push(['aUV', m.uv, 2]);
   for (const [name, data, size] of attrs) {
     const b = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);

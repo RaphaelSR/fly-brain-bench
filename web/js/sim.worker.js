@@ -29,7 +29,7 @@ let totalSpikes = 0;
 
 function reset() {
   v.fill(V0); g.fill(0); rfc.fill(0); inActive.fill(0); spikeCount.fill(0);
-  nActive = 0; step = 0; totalSpikes = 0;
+  nActive = 0; step = 0; totalSpikes = 0; outCount = 0;
   for (let i = 0; i < ringLen; i++) ring[i].n = 0;
   for (let k = 0; k < stimList.length; k++) touch(stimList[k]);
 }

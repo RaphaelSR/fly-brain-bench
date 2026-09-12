@@ -130,13 +130,11 @@ function relabel() {
     if (p) b.querySelector('.p-name').textContent = t(`preset.${p.id}.name`);
   });
   document.querySelectorAll('.lib-head').forEach(h => { h.textContent = t(`tag.${h.dataset.tag}`); });
-  if (S.selKey) { $('#selName').textContent = t(S.selKey.name, S.selVars); $('#selWhy').textContent = t(S.selKey.why, S.selVars); }
-  buildLegend(); buildBehaviourPicker(); updateTrainUI(); bindInfo();
-  const pop = $('#infoPop');
-  if (pop && pop.classList.contains('open') && pop.dataset.key) {
-    pop.querySelector('h4').textContent = t(`info.${pop.dataset.key}.t`);
-    pop.querySelector('p').textContent = t(`info.${pop.dataset.key}.b`);
+  if (S.selKey) {
+    $('#selName').textContent = S.selKey.literal || t(S.selKey.name, S.selVars);
+    $('#selWhy').textContent = t(S.selKey.why, S.selVars);
   }
+  buildLegend(); buildBehaviourPicker(); updateTrainUI(); paintInfo();
   $('#btnPlay').textContent = t(S.running ? 'tp.pause' : 'tp.run');
   $('#speedOut').textContent = t('tp.perframe', { v: (+$('#speed').value * 0.1).toFixed(1) });
   const ld = $('#loadLabel'); if (ld && ld.dataset.i18n) ld.textContent = t(ld.dataset.i18n);
@@ -276,7 +274,7 @@ function applyStimulus(idx, keys, vars) {
   S.spikeAccum.fill(0); S.winCount.fill(0); S.hz.fill(0);
   S.view.act.fill(0); S.view.uploadAct();
   S.worker.postMessage({ cmd: 'stim', idx: Int32Array.from(idx) });
-  $('#selName').textContent = t(keys.name, vars);
+  $('#selName').textContent = keys.literal || t(keys.name, vars);
   $('#selWhy').textContent = t(keys.why, vars);
   $('#selMeta').innerHTML = t('rail.atrate', { n: idx.length });
   setRunning(true);
@@ -330,39 +328,45 @@ function driveType(ti, name, n) {
   const ct = S.labels.cellType, idx = [];
   for (let k = 0; k < ct.length; k++) if (ct[k] === ti) idx.push(k);
   document.querySelectorAll('.preset').forEach(b => b.classList.remove('on'));
-  applyStimulus(idx, { name: '_raw', why: n === 1 ? 'ins.customOne' : 'ins.customMany' }, { n, t: name });
-  $('#selName').textContent = name;
+  applyStimulus(idx, { literal: name, why: n === 1 ? 'ins.customOne' : 'ins.customMany' }, { n, t: name });
   $('#inspect').classList.remove('show');
 }
 
 /* ---------------- info popovers ---------------- */
 function bindInfo() {
+  if (bindInfo.done) return;          // delegated once; re-binding would stack handlers
+  bindInfo.done = true;
   const pop = $('#infoPop');
-  const close = () => { pop.classList.remove('open'); document.querySelectorAll('.info.on').forEach(b => b.classList.remove('on')); };
-  document.querySelectorAll('.info').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const wasOpen = btn.classList.contains('on');
-      close();
-      if (wasOpen) return;
-      btn.classList.add('on');
-      pop.querySelector('h4').textContent = t(`info.${btn.dataset.info}.t`);
-      pop.querySelector('p').textContent = t(`info.${btn.dataset.info}.b`);
-      pop.classList.add('open');
-      pop.dataset.key = btn.dataset.info;
-      // place it near the button, kept inside the window
-      pop.style.visibility = 'hidden'; pop.style.left = '0px'; pop.style.top = '0px';
-      const r = btn.getBoundingClientRect(), pr = pop.getBoundingClientRect();
-      let x = Math.min(Math.max(8, r.left - pr.width / 2 + r.width / 2), innerWidth - pr.width - 8);
-      let y = r.bottom + 8;
-      if (y + pr.height > innerHeight - 8) y = Math.max(8, r.top - pr.height - 8);
-      pop.style.left = `${Math.round(x)}px`; pop.style.top = `${Math.round(y)}px`;
-      pop.style.visibility = '';
-    });
+  const close = () => {
+    pop.classList.remove('open');
+    document.querySelectorAll('.info.on').forEach(b => b.classList.remove('on'));
+  };
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.info');
+    if (!btn) { if (!e.target.closest('#infoPop')) close(); return; }
+    const wasOpen = btn.classList.contains('on');
+    close();
+    if (wasOpen) return;
+    btn.classList.add('on');
+    pop.dataset.key = btn.dataset.info;
+    paintInfo();
+    pop.classList.add('open');
+    pop.style.visibility = 'hidden'; pop.style.left = '0px'; pop.style.top = '0px';
+    const r = btn.getBoundingClientRect(), pr = pop.getBoundingClientRect();
+    const x = Math.min(Math.max(8, r.left + r.width / 2 - pr.width / 2), innerWidth - pr.width - 8);
+    let y = r.bottom + 8;
+    if (y + pr.height > innerHeight - 8) y = Math.max(8, r.top - pr.height - 8);
+    pop.style.left = `${Math.round(x)}px`; pop.style.top = `${Math.round(y)}px`;
+    pop.style.visibility = '';
   });
-  document.addEventListener('click', close);
   document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
-  pop.addEventListener('click', e => e.stopPropagation());
+}
+
+function paintInfo() {
+  const pop = $('#infoPop');
+  if (!pop || !pop.dataset.key) return;
+  pop.querySelector('h4').textContent = t(`info.${pop.dataset.key}.t`);
+  pop.querySelector('p').textContent = t(`info.${pop.dataset.key}.b`);
 }
 
 /* ---------------- frame loop ---------------- */
@@ -391,7 +395,7 @@ function schedule() {
 }
 
 function readout(now) {
-  const dtSec = Math.max((now - (S.lastReadout || now - 200)) / 1000, 0.05);
+  const dtSec = S.lastReadout ? Math.min(Math.max((now - S.lastReadout) / 1000, 0.05), 1.0) : 0.2;
   $('#statT').textContent = S.t.toFixed(1);
   $('#statActive').textContent = S.nActive.toLocaleString(getLocale());
   $('#statSpikes').textContent = S.totalSpikes.toLocaleString(getLocale());
