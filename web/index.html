@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fly Brain Bench</title>
+<meta name="description" content="Stimulate a population of neurons in a real fruit fly connectome and watch the spikes spread through 2.7 million measured connections.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============ loading screen doubles as the primer ============ -->
+<div id="boot">
+  <div class="boot-inner">
+    <header class="boot-head">
+      <p class="eyebrow">Drosophila melanogaster &middot; FlyWire v783</p>
+      <h1>You are about to switch on<br>a real fly's brain.</h1>
+    </header>
+
+    <div class="primer">
+      <article class="card c1">
+        <span class="n">What loads</span>
+        <h2>Every neuron, in its real place</h2>
+        <p>A fly brain was sliced into 7,000 layers, photographed under an electron microscope, and traced by machine and by hand. The result is <strong id="statNeurons">138,639</strong> neurons and <strong id="statEdges">2,700,513</strong> connections between them — measured, not invented.</p>
+      </article>
+
+      <article class="card c2">
+        <span class="n">What a neuron does</span>
+        <h2>It is a bucket with a hole in it</h2>
+        <p>Signals arriving fill the bucket. It leaks back down on its own. If the level crosses a line, the neuron <em>fires</em> — it empties, and squirts into every bucket it is wired to. That is the whole rule. Nothing here is trained, and nothing learns.</p>
+        <div class="bucket" aria-hidden="true">
+          <svg viewBox="0 0 260 92" role="img">
+            <line x1="0" y1="34" x2="260" y2="34" class="th" stroke-dasharray="4 5"></line>
+            <text x="4" y="28" class="lbl">fires here &middot; &minus;45 mV</text>
+            <path id="trace" class="tr" d=""></path>
+            <line x1="0" y1="76" x2="260" y2="76" class="rest"></line>
+            <text x="4" y="88" class="lbl">rest &middot; &minus;52 mV</text>
+          </svg>
+        </div>
+      </article>
+
+      <article class="card c3">
+        <span class="n">What you will do</span>
+        <h2>Poke it and watch</h2>
+        <p>Pick a sense on the left — sugar on the mouthparts, the smell of rotting fruit, a shadow growing overhead. Those neurons start firing at 150&nbsp;Hz, and the activity spreads outward along the real wiring. Nobody tells it where to go.</p>
+      </article>
+    </div>
+
+    <div class="boot-foot">
+      <div class="load">
+        <div class="load-row">
+          <span id="loadLabel">Starting</span><span id="loadPct" class="mono">0%</span>
+        </div>
+        <div class="track"><div id="loadBar"></div></div>
+        <p id="loadDetail">8.4 MB of connectome. It is cached after the first visit.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ the bench ============ -->
+<header class="top">
+  <div class="brand">
+    <span class="mark" aria-hidden="true"></span>
+    <div>
+      <h1>Fly Brain Bench</h1>
+      <p>Leaky integrate-and-fire over the FlyWire connectome</p>
+    </div>
+  </div>
+  <div class="top-stats mono">
+    <span><b id="statT">0.0</b> ms</span>
+    <span><b id="statActive">0</b> settling</span>
+    <span><b id="statSpikes">0</b> spikes</span>
+    <span><b id="statFps">0</b> fps</span>
+  </div>
+  <button id="btnHelp" class="ghost">How this works</button>
+</header>
+
+<main>
+  <!-- left rail -->
+  <aside class="rail left">
+    <h2 class="rail-title">Stimulate</h2>
+    <div id="library"></div>
+  </aside>
+
+  <!-- the well -->
+  <section class="well-wrap">
+    <canvas id="well"></canvas>
+    <div id="inspect"></div>
+    <div id="legend" class="legend"></div>
+    <div class="well-hint">drag to turn &middot; scroll to zoom &middot; click a lit neuron</div>
+  </section>
+
+  <!-- right rail -->
+  <aside class="rail right">
+    <div class="sel">
+      <h2 class="rail-title">Driving</h2>
+      <p class="sel-name" id="selName">—</p>
+      <p class="sel-meta mono"><b id="selCount">0</b> neurons at 150 Hz</p>
+      <p class="sel-why" id="selWhy"></p>
+      <div class="sel-types" id="selTypes"></div>
+    </div>
+    <div class="resp-wrap">
+      <h2 class="rail-title">Responding <span class="mono dim"><b id="respCount">0</b> types</span></h2>
+      <div id="respBody"><p class="empty">Nothing downstream is firing yet.</p></div>
+    </div>
+  </aside>
+</main>
+
+<footer class="transport">
+  <div class="tp-controls">
+    <button id="btnPlay" class="primary">Run</button>
+    <button id="btnReset" class="ghost">Reset</button>
+  </div>
+  <label class="slider">Speed
+    <input id="speed" type="range" min="1" max="40" value="8">
+    <span id="speedOut" class="mono">0.8 ms/frame</span>
+  </label>
+  <label class="slider">Structure
+    <input id="glow" type="range" min="0.05" max="1.1" step="0.01" value="0.34">
+  </label>
+</footer>
+
+<!-- ============ explainer ============ -->
+<div id="explainer">
+  <div class="ex-sheet">
+    <button id="btnCloseHelp" class="ex-close" aria-label="Close">&times;</button>
+    <div class="ex-body">
+      <p class="eyebrow">The whole thing in five boxes</p>
+      <h2 class="ex-title">What is actually happening here</h2>
+
+      <div class="ex-grid">
+        <section class="ex-card k-map">
+          <h3><span class="k">1</span> The map is real, and it was photographed</h3>
+          <p>A female fruit fly's brain was cut into about 7,000 slices and imaged with an electron microscope. Machine learning traced every neuron through the stack, then people checked and corrected it — millions of edits. What came out is not a model of a brain. It is a <strong>map of one particular brain</strong>: which of the 138,639 neurons touches which, and how many times.</p>
+          <p class="aside">Published by the FlyWire consortium, release 783. Free to reuse under CC-BY.</p>
+        </section>
+
+        <section class="ex-card k-cell">
+          <h3><span class="k">2</span> Each neuron is a leaky bucket</h3>
+          <p>Every neuron here holds a voltage. Left alone it drifts back to its resting level of &minus;52&nbsp;mV, like water draining out. Incoming signals push it up — or down, if the sender is an inhibitory neuron. Cross &minus;45&nbsp;mV and it <strong>fires</strong>: it dumps its charge into everything downstream, resets to the bottom, and goes deaf for 2.2&nbsp;ms before it can fire again.</p>
+          <p class="aside">Five constants, taken from published fly electrophysiology. No weights were fitted, and there is no training step anywhere in this page.</p>
+        </section>
+
+        <section class="ex-card k-sign">
+          <h3><span class="k">3</span> Colour is the chemical, not the mood</h3>
+          <p>Each neuron releases one transmitter, and that decides whether it pushes its targets up or pulls them down. Acetylcholine excites; GABA and glutamate inhibit. In this fly, 62% of neurons are excitatory. The colours in the viewport are those chemicals — so a wash of amber spreading outward is excitation, and the blue and violet cells are the brakes.</p>
+        </section>
+
+        <section class="ex-card k-do">
+          <h3><span class="k">4</span> Stimulating is the only input</h3>
+          <p>When you choose a sense, the neurons that carry it are driven with random pulses at 150&nbsp;Hz — the electrical equivalent of holding sugar against the mouthparts. Everything after that is the wiring doing its own thing. <strong>Activity is not routed, scored, or steered.</strong> It spreads or it dies out, depending on what those neurons happen to be connected to.</p>
+          <p class="aside">The sugar preset reproduces the benchmark experiment from the paper this model comes from: drive the taste neurons, and the motor neurons that extend the proboscis light up a few milliseconds later.</p>
+        </section>
+
+        <section class="ex-card k-not">
+          <h3><span class="k">5</span> What this is not</h3>
+          <ul>
+            <li>The map gives <strong>wiring, not physiology</strong>. Real synapse strengths, neuromodulation and plasticity were never measured — here, strength is just the number of contacts.</li>
+            <li>No learning, no memory of past runs, no behaviour. It reacts and then settles.</li>
+            <li>Connections of fewer than 5 contacts are dropped to keep the download to 8&nbsp;MB. Against the full model on the sugar benchmark this keeps <strong>92.5%</strong> of the responding neurons and a rate correlation of <strong>0.988</strong>.</li>
+          </ul>
+        </section>
+
+        <section class="ex-card k-why">
+          <h3><span class="k">&middot;</span> Why a fly, and why it fits on a laptop</h3>
+          <p>A human brain has roughly 86 billion neurons. This one has 139 thousand — small enough to map completely, and small enough that the entire wiring diagram compresses to less than a photograph. It is currently the largest brain of any animal that has been mapped connection by connection.</p>
+          <p class="cmp">
+            <span><b>139k</b> neurons<br><i>this fly</i></span>
+            <span><b>86B</b> neurons<br><i>a human</i></span>
+            <span><b>0</b> trained<br><i>parameters here</i></span>
+          </p>
+        </section>
+      </div>
+
+      <p class="ex-src">Connectome: Dorkenwald et&nbsp;al., FlyWire v783 (CC-BY). Annotations: Schlegel et&nbsp;al. Model and constants: Shiu et&nbsp;al., <em>Nature</em> 2024. This page is an independent visualisation, not affiliated with those groups.</p>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/app.js"></script>
+<script>
+/* the little voltage trace on the loading card */
+(function () {
+  const path = document.getElementById('trace'); if (!path) return;
+  const W = 260, REST = 76, TH = 34;
+  let v = REST, t = 0, pts = [];
+  setInterval(() => {
+    t++;
+    if (Math.random() < 0.16) v -= 9 + Math.random() * 9;
+    v += (REST - v) * 0.12;
+    if (v < TH) { pts.push([t, TH - 12]); v = REST; }
+    pts.push([t, v]);
+    if (pts.length > W) pts = pts.slice(-W);
+    const x0 = pts[0][0];
+    path.setAttribute('d', 'M' + pts.map(p => `${(p[0] - x0)},${p[1].toFixed(1)}`).join('L'));
+  }, 34);
+})();
+</script>
+</body>
+</html>

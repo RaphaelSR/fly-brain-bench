@@ -1,0 +1,6 @@
+# Source connectome downloads (~350 MB). Rebuild with tools/00_fetch.sh
+data/raw/
+.venv/
+__pycache__/
+.DS_Store
+tools/ref_model.py
