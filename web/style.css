@@ -49,7 +49,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ach); outline-o
 .ghost:hover{border-color:var(--ach); color:var(--ink)}
 
 /* ---------- layout ---------- */
-main{display:grid; grid-template-columns:var(--rail) 1fr var(--railR); min-height:0}
+main{display:grid; grid-template-columns:var(--rail) minmax(0,1fr) var(--railR); min-height:0}
+main > *{min-width:0}
 .rail{background:var(--panel); overflow-y:auto; padding:14px 0 22px}
 .rail.left{border-right:1px solid var(--line)}
 .rail.right{border-left:1px solid var(--line); display:flex; flex-direction:column; gap:2px}
@@ -81,6 +82,7 @@ main{display:grid; grid-template-columns:var(--rail) 1fr var(--railR); min-heigh
 .well-hint{
   position:absolute; left:14px; bottom:12px; font-family:var(--fm); font-size:10.5px;
   letter-spacing:.06em; color:var(--ink3); pointer-events:none;
+  max-width:calc(100% - 200px);   /* stay clear of the legend */
 }
 #inspect{
   position:absolute; right:14px; top:14px; width:214px; padding:12px 13px;
@@ -208,17 +210,6 @@ main{display:grid; grid-template-columns:var(--rail) 1fr var(--railR); min-heigh
 .ex-src{margin:20px 0 0; font-size:11px; color:var(--ink3); border-top:1px solid var(--line); padding-top:13px}
 
 /* ---------- responsive ---------- */
-@media (max-width:1180px){ :root{--rail:214px; --railR:256px} .top-stats span:nth-child(4){display:none} }
-@media (max-width:900px){
-  body{overflow:auto}
-  main{grid-template-columns:1fr; grid-template-rows:auto 62vh auto}
-  .rail{max-height:none}
-  .rail.left{border-right:0; border-bottom:1px solid var(--line)}
-  .rail.right{border-left:0; border-top:1px solid var(--line)}
-  .top-stats{display:none}
-  .legend{margin-left:0; width:100%}
-}
-@media (prefers-reduced-motion:reduce){ *{animation:none !important; transition:none !important} }
 
 /* responding rows carry their class under the name */
 .resp{grid-template-columns:1fr 62px 24px; align-items:center}
@@ -233,10 +224,6 @@ main{display:grid; grid-template-columns:var(--rail) 1fr var(--railR); min-heigh
 }
 .transport{flex-wrap:nowrap; gap:26px}
 .transport .slider{flex:none}
-@media (max-width:900px){
-  .legend{position:static; flex-direction:row; flex-wrap:wrap; background:none; border:0; backdrop-filter:none; padding:0}
-  .transport{flex-wrap:wrap}
-}
 
 /* inspector actions */
 .ins-go{
@@ -251,3 +238,61 @@ main{display:grid; grid-template-columns:var(--rail) 1fr var(--railR); min-heigh
 }
 .ins-link:hover{color:var(--ach)}
 #inspect.show{pointer-events:auto}
+
+/* ---------- responsive ---------- */
+@media (max-width:1180px){
+  :root{--rail:214px; --railR:256px}
+  .top-stats span:nth-child(4){display:none}
+}
+
+@media (max-width:900px){
+  /* stack naturally and let the page scroll, instead of fitting a fixed grid */
+  body{display:block; overflow:auto; height:auto; min-height:100%}
+  main{grid-template-columns:minmax(0,1fr); grid-template-rows:auto 54vh auto}
+  .top{padding:9px 13px; gap:12px}
+  .top-stats{display:none}
+  .brand p{display:none}
+
+  /* the stimulus library becomes one horizontally scrolling strip of chips */
+  .rail.left{border-right:0; border-bottom:1px solid var(--line); padding:0; overflow:visible}
+  .rail.left > .rail-title{display:none}
+  #library{
+    display:flex; align-items:center; gap:7px; min-width:0; max-width:100%;
+    overflow-x:auto; overflow-y:hidden; padding:10px 13px;
+    scrollbar-width:none; -webkit-overflow-scrolling:touch;
+  }
+  #library::-webkit-scrollbar{display:none}
+  .lib-head{
+    flex:none; border-top:0; margin:0; padding:0 0 0 9px;
+    border-left:1px solid var(--line); display:flex; align-items:center; height:22px;
+  }
+  .lib-head:first-child{border-left:0; padding-left:0}
+  .preset{
+    flex:none; width:auto; border-left:0; border:1px solid var(--line2); border-radius:999px;
+    padding:7px 13px; gap:7px; white-space:nowrap;
+  }
+  .preset.on{border-color:var(--ach); background:var(--raise)}
+
+  .well-wrap{min-height:280px}
+  .legend{
+    top:10px; right:10px; bottom:auto; left:10px;
+    flex-direction:row; flex-wrap:wrap; gap:4px 11px; padding:7px 9px;
+  }
+  .well-hint{font-size:9.5px; right:10px; bottom:8px; left:10px; text-align:center; max-width:none}
+  #inspect{right:10px; top:auto; bottom:34px; width:min(214px,calc(100% - 20px))}
+
+  .rail{overflow:visible}
+  .rail.right{border-left:0; border-top:1px solid var(--line); padding-top:16px; display:block}
+  .resp-wrap{overflow:visible; max-height:none}
+  .transport{flex-wrap:wrap; gap:14px 20px; padding:12px 13px}
+  .slider input{width:96px}
+  .ex-body{padding:20px 16px}
+}
+
+@media (max-width:420px){
+  .legend .leg:nth-child(n+5){display:none}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important; transition:none !important}
+}

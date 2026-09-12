@@ -142,12 +142,15 @@ export class BrainView {
 
   mvp() {
     const [w, h] = [this.canvas.width, this.canvas.height];
+    // the brain is ~2x wider than tall, so pull back when the viewport is narrow
+    const aspect = w / Math.max(h, 1);
+    const dist = this.dist * Math.max(1, 1.2 / aspect);
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
     const eye = [
-      this.target[0] + this.dist * cp * Math.sin(this.yaw),
-      this.target[1] + this.dist * sp,
-      this.target[2] + this.dist * cp * Math.cos(this.yaw)];
-    const proj = m4.perspective(0.9, w / Math.max(h, 1), this.radius * 0.05, this.radius * 30);
+      this.target[0] + dist * cp * Math.sin(this.yaw),
+      this.target[1] + dist * sp,
+      this.target[2] + dist * cp * Math.cos(this.yaw)];
+    const proj = m4.perspective(0.9, aspect, this.radius * 0.05, this.radius * 30);
     const view = m4.lookAt(eye, this.target, [0, -1, 0]);   // fly brain data is y-down
     this._eye = eye;
     return m4.mul(proj, view);
