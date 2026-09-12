@@ -53,14 +53,30 @@ are named, well-studied channels, and the decoder reads them directly:
 | `DNp10`, `DNp07` | 4 | Leg extension for landing. |
 | `MN10`, `MNx01`, `MNx03` | 8 | Proboscis motor neurons — extend to feed. |
 
-The fly itself is procedural geometry with a real tripod gait (L1 R2 L3 alternating
-with R1 L2 R3), no mesh and no library.
+The fly itself is procedural geometry — no mesh, no library — and she lives in a
+small world rather than floating in space:
+
+- **Axes follow the fly convention**: +Z anterior, +Y dorsal, +X to her right; yaw
+  about Y, pitch about X, roll about Z. She banks into turns and pitches nose-up on
+  takeoff.
+- **Real tripod gait**: front-left, mid-right and hind-left swing together, then the
+  other three. Feet are tracked in *world* space, so a planted foot stays where it
+  is while the body travels over it.
+- **Legs are solved by two-link inverse kinematics** onto those footholds — coxa,
+  femur, tibia, tarsus — so the pose is geometry rather than a canned animation.
+- Wings fold back over the abdomen at rest and sweep into a tilted figure-eight
+  stroke in flight; halteres beat in antiphase, as they do in a real fly.
+- She walks across a ground plane, casts a contact shadow, and the camera trails her.
 
 Two results worth trying:
 
 - **Sugar** drives the proboscis channel and the fly extends to feed.
 - **Looming** drives `DNp01` to ~200 Hz and the fly takes off. Nothing aims at the
   giant fibre; the wiring reaches it on its own.
+
+Every panel carries an **info button** explaining what it shows and, where it
+matters, which half is measured and which half is engineering — in all three
+languages.
 
 ## Teaching the decoder
 

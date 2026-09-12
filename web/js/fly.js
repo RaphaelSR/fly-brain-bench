@@ -1,7 +1,13 @@
-/* Procedural articulated Drosophila, rendered in its own WebGL2 context.
-   Proportions follow a real fly: body ~2.5 mm, wings slightly longer than the
-   abdomen, legs in the 3-segment coxa/femur/tibia arrangement. The gait is the
-   tripod pattern flies actually use (L1 R2 L3 alternating with R1 L2 R3). */
+/* Procedural Drosophila in a small world.
+
+   Axes follow the usual fly convention: +Z is anterior (forward), +Y is dorsal
+   (up), +X is to the fly's right. Yaw turns about Y, pitch about X, roll about Z.
+
+   Legs are a real kinematic chain — coxa attachment, then femur and tibia solved
+   by two-link inverse kinematics onto a foot target. During stance the foot stays
+   planted on the ground while the body moves over it; during swing it lifts and
+   swings forward. That is what makes the tripod gait read as walking rather than
+   as legs waving in the air. */
 
 const VS = `#version 300 es
 precision highp float;
@@ -18,21 +24,55 @@ uniform vec3 uColor; uniform float uAlpha; uniform float uEmit;
 out vec4 frag;
 void main(){
   vec3 n = normalize(vN);
-  vec3 key = normalize(vec3(0.45, 0.8, 0.55));
-  vec3 rim = normalize(vec3(-0.6, 0.15, -0.5));
+  vec3 key = normalize(vec3(0.42, 0.82, 0.55));
+  vec3 rim = normalize(vec3(-0.62, 0.20, -0.52));
   float d = max(dot(n, key), 0.0);
   float r = pow(max(dot(n, rim), 0.0), 2.0);
-  vec3 c = uColor * (0.40 + 1.30 * d) + vec3(0.95,0.76,0.42) * r * 0.55 + uColor * uEmit * 2.0;
+  vec3 c = uColor * (0.38 + 1.25 * d) + vec3(0.95,0.76,0.42) * r * 0.5 + uColor * uEmit * 2.0;
   frag = vec4(c, uAlpha);
 }`;
 
+/* ground: a grid whose lines come from world position, so the fly visibly travels */
+const GVS = `#version 300 es
+precision highp float;
+in vec3 aPos;
+uniform mat4 uVP; uniform vec2 uOrigin;
+out vec2 vXZ; out vec2 vLocal;
+void main(){
+  // the ground follows the fly; the grid pattern stays in world coordinates,
+  // so walking visibly carries her across it
+  vec2 world = aPos.xz * 14.0 + uOrigin;
+  vXZ = world;
+  vLocal = aPos.xz;
+  gl_Position = uVP * vec4(world.x, 0.0, world.y, 1.0);
+}`;
+
+const GFS = `#version 300 es
+precision highp float;
+in vec2 vXZ; in vec2 vLocal;
+out vec4 frag;
+float grid(vec2 p, float scale){
+  vec2 c = p * scale;
+  vec2 g = abs(fract(c - 0.5) - 0.5) / max(fwidth(c), vec2(1e-5));
+  return 1.0 - min(min(g.x, g.y), 1.0);
+}
+void main(){
+  float minor = grid(vXZ, 2.0);
+  float major = grid(vXZ, 0.4);
+  float fade = smoothstep(1.0, 0.12, length(vLocal));
+  vec3 c = vec3(0.052,0.082,0.094)
+         + vec3(0.10,0.16,0.18) * minor * 0.75
+         + vec3(0.26,0.34,0.36) * major * 0.95;
+  frag = vec4(c, fade);
+}`;
+
 /* ---- geometry ---- */
-function sphere(seg = 14, ring = 10) {
+function sphere(seg = 16, ring = 12) {
   const pos = [], nrm = [], idx = [];
   for (let y = 0; y <= ring; y++) {
-    const v = y / ring, phi = v * Math.PI;
+    const phi = (y / ring) * Math.PI;
     for (let x = 0; x <= seg; x++) {
-      const u = x / seg, th = u * Math.PI * 2;
+      const th = (x / seg) * Math.PI * 2;
       const nx = Math.sin(phi) * Math.cos(th), ny = Math.cos(phi), nz = Math.sin(phi) * Math.sin(th);
       pos.push(nx * .5, ny * .5, nz * .5); nrm.push(nx, ny, nz);
     }
@@ -44,69 +84,83 @@ function sphere(seg = 14, ring = 10) {
   return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), idx: new Uint16Array(idx) };
 }
 function wingMesh() {
-  // a flat teardrop in the x/z plane
-  const pos = [], nrm = [], idx = [];
-  const n = 22;
-  pos.push(0, 0, 0); nrm.push(0, 1, 0);
+  const pos = [0, 0, 0], nrm = [0, 1, 0], idx = [];
+  const n = 24;
   for (let i = 0; i <= n; i++) {
-    const t = i / n, a = t * Math.PI;
-    const x = t, z = Math.sin(a) * 0.23 * (1 - 0.45 * t);
-    pos.push(x, 0, z); nrm.push(0, 1, 0);
-    pos.push(x, 0, -z * 0.55); nrm.push(0, 1, 0);
+    const t = i / n;
+    const z = Math.sin(t * Math.PI) * 0.26 * (1 - 0.42 * t);
+    pos.push(t, 0, z); nrm.push(0, 1, 0);
+    pos.push(t, 0, -z * 0.5); nrm.push(0, 1, 0);
   }
-  for (let i = 0; i < n; i++) {
-    const a = 1 + i * 2, b = a + 2;
-    idx.push(a, b, a + 1, a + 1, b, b + 1);
-  }
+  for (let i = 0; i < n; i++) { const a = 1 + i * 2, b = a + 2; idx.push(a, b, a + 1, a + 1, b, b + 1); }
   return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), idx: new Uint16Array(idx) };
 }
+function quad() {
+  return { pos: new Float32Array([-1,0,-1, 1,0,-1, 1,0,1, -1,0,1]),
+           nrm: new Float32Array([0,1,0, 0,1,0, 0,1,0, 0,1,0]),
+           idx: new Uint16Array([0,1,2, 0,2,3]) };
+}
 
-/* ---- tiny matrix helpers ---- */
-const M = {
-  ident: () => new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]),
-  mul(a, b) { const o = new Float32Array(16);
-    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0;
-      for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = s; } return o; },
-  trs(t, rx, ry, rz, s) {
-    const cx=Math.cos(rx),sx=Math.sin(rx),cy=Math.cos(ry),sy=Math.sin(ry),cz=Math.cos(rz),sz=Math.sin(rz);
-    const r = [cy*cz+sy*sx*sz, cx*sz, -sy*cz+cy*sx*sz,
-               -cy*sz+sy*sx*cz, cx*cz, sy*sz+cy*sx*cz,
-               sy*cx, -sx, cy*cx];
-    const sc = Array.isArray(s) ? s : [s, s, s];
-    return new Float32Array([
-      r[0]*sc[0], r[1]*sc[0], r[2]*sc[0], 0,
-      r[3]*sc[1], r[4]*sc[1], r[5]*sc[1], 0,
-      r[6]*sc[2], r[7]*sc[2], r[8]*sc[2], 0,
-      t[0], t[1], t[2], 1]);
-  },
-  perspective(f, a, n, fa) { const q = 1 / Math.tan(f / 2), nf = 1 / (n - fa);
-    return new Float32Array([q/a,0,0,0, 0,q,0,0, 0,0,(fa+n)*nf,-1, 0,0,2*fa*n*nf,0]); },
-  lookAt(e, c, u) {
-    const z = nrm3(sub3(e, c)), x = nrm3(cross3(u, z)), y = cross3(z, x);
-    return new Float32Array([x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0,
-      -dot3(x,e), -dot3(y,e), -dot3(z,e), 1]); },
-  normalOf(m) { return new Float32Array([m[0],m[1],m[2], m[4],m[5],m[6], m[8],m[9],m[10]]); },
-};
+/* ---- vec / mat ---- */
 const sub3=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const add3=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+const mul3=(a,s)=>[a[0]*s,a[1]*s,a[2]*s];
 const dot3=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const cross3=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
-const nrm3=(a)=>{const l=Math.hypot(...a)||1;return [a[0]/l,a[1]/l,a[2]/l];};
-
-/* ---- the fly ---- */
-const COL = {
-  thorax: [0.52, 0.38, 0.21], abdomen: [0.34, 0.26, 0.16], head: [0.46, 0.33, 0.19],
-  eye: [0.86, 0.21, 0.13], leg: [0.30, 0.23, 0.15], wing: [0.78, 0.84, 0.88],
-  proboscis: [0.68, 0.53, 0.32], halter: [0.62, 0.47, 0.27],
+const len3=(a)=>Math.hypot(a[0],a[1],a[2]);
+const nrm3=(a)=>{const l=len3(a)||1;return [a[0]/l,a[1]/l,a[2]/l];};
+const M = {
+  mul(a,b){const o=new Float32Array(16);
+    for(let i=0;i<4;i++)for(let j=0;j<4;j++){let s=0;for(let k=0;k<4;k++)s+=a[k*4+j]*b[i*4+k];o[i*4+j]=s;}return o;},
+  perspective(f,a,n,fa){const q=1/Math.tan(f/2),nf=1/(n-fa);
+    return new Float32Array([q/a,0,0,0, 0,q,0,0, 0,0,(fa+n)*nf,-1, 0,0,2*fa*n*nf,0]);},
+  lookAt(e,c,u){const z=nrm3(sub3(e,c)),x=nrm3(cross3(u,z)),y=cross3(z,x);
+    return new Float32Array([x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0,
+      -dot3(x,e),-dot3(y,e),-dot3(z,e),1]);},
+  /* body frame: yaw about Y, then pitch about X, then roll about Z, at t */
+  body(t,yaw,pitch,roll){
+    const cy=Math.cos(yaw),sy=Math.sin(yaw),cx=Math.cos(pitch),sx=Math.sin(pitch),cz=Math.cos(roll),sz=Math.sin(roll);
+    const r=[ cy*cz+sy*sx*sz, cx*sz, -sy*cz+cy*sx*sz,
+             -cy*sz+sy*sx*cz, cx*cz,  sy*sz+cy*sx*cz,
+              sy*cx,         -sx,     cy*cx];
+    return new Float32Array([r[0],r[1],r[2],0, r[3],r[4],r[5],0, r[6],r[7],r[8],0, t[0],t[1],t[2],1]);
+  },
+  scaleRot(s){ return new Float32Array([s[0],0,0,0, 0,s[1],0,0, 0,0,s[2],0, 0,0,0,1]); },
+  /* a capsule-ish segment running from p0 to p1 with a given thickness */
+  bone(p0,p1,thick){
+    const d=sub3(p1,p0), L=len3(d)||1e-4, y=mul3(d,1/L);
+    const ref=Math.abs(y[1])>0.92?[1,0,0]:[0,1,0];
+    const x=nrm3(cross3(ref,y)), z=cross3(x,y);
+    const m=[(p0[0]+p1[0])/2,(p0[1]+p1[1])/2,(p0[2]+p1[2])/2];
+    return new Float32Array([x[0]*thick,x[1]*thick,x[2]*thick,0,
+                             y[0]*L,y[1]*L,y[2]*L,0,
+                             z[0]*thick,z[1]*thick,z[2]*thick,0,
+                             m[0],m[1],m[2],1]);
+  },
+  normalOf(m){ return new Float32Array([m[0],m[1],m[2], m[4],m[5],m[6], m[8],m[9],m[10]]); },
+  translate(t){ return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, t[0],t[1],t[2],1]); },
 };
-// tripod groups: front-left, mid-right, hind-left | front-right, mid-left, hind-right
+
+const COL = {
+  thorax:[0.54,0.39,0.22], abdomen:[0.33,0.25,0.15], head:[0.47,0.34,0.20],
+  eye:[0.86,0.22,0.13], coxa:[0.34,0.26,0.17], femur:[0.31,0.24,0.15],
+  tibia:[0.27,0.21,0.14], tarsus:[0.22,0.17,0.11], wing:[0.80,0.86,0.90],
+  proboscis:[0.70,0.55,0.33], halter:[0.66,0.50,0.29], antenna:[0.40,0.30,0.19],
+  bristle:[0.18,0.14,0.10],
+};
+
+/* Body height, and the three leg pairs. Coxae sit ventro-laterally on the thorax;
+   pro/meso/metathoracic legs get progressively longer, as in a real fly. */
+const H = 0.30;
 const LEGS = [
-  { side: -1, z:  0.30, group: 0, spread: 0.95, len: 0.58 },
-  { side:  1, z:  0.30, group: 1, spread: 0.95, len: 0.58 },
-  { side: -1, z:  0.02, group: 1, spread: 1.15, len: 0.62 },
-  { side:  1, z:  0.02, group: 0, spread: 1.15, len: 0.62 },
-  { side: -1, z: -0.26, group: 0, spread: 1.05, len: 0.74 },
-  { side:  1, z: -0.26, group: 1, spread: 1.05, len: 0.74 },
+  { side:-1, z: 0.26, tripod:0, femur:0.30, tibia:0.34, reach:[-0.40, 0.34], phase:0.00 },
+  { side: 1, z: 0.26, tripod:1, femur:0.30, tibia:0.34, reach:[ 0.40, 0.34], phase:0.00 },
+  { side:-1, z: 0.02, tripod:1, femur:0.33, tibia:0.37, reach:[-0.50, 0.02], phase:0.00 },
+  { side: 1, z: 0.02, tripod:0, femur:0.33, tibia:0.37, reach:[ 0.50, 0.02], phase:0.00 },
+  { side:-1, z:-0.22, tripod:0, femur:0.37, tibia:0.44, reach:[-0.46,-0.34], phase:0.00 },
+  { side: 1, z:-0.22, tripod:1, femur:0.37, tibia:0.44, reach:[ 0.46,-0.34], phase:0.00 },
 ];
+const STRIDE = 0.30;
 
 export class FlyView {
   constructor(canvas) {
@@ -114,57 +168,113 @@ export class FlyView {
     if (!gl) throw new Error('WebGL2 required');
     this.gl = gl; this.canvas = canvas;
     this.prog = link(gl, VS, FS);
-    this.sphere = upload(gl, this.prog, sphere());
-    this.wing = upload(gl, this.prog, wingMesh());
+    this.gprog = link(gl, GVS, GFS);
+    this.sphere = mesh(gl, this.prog, sphere());
+    this.wing = mesh(gl, this.prog, wingMesh());
+    this.ground = mesh(gl, this.gprog, quad());
     this.u = {
-      VP: gl.getUniformLocation(this.prog, 'uVP'),
-      model: gl.getUniformLocation(this.prog, 'uModel'),
-      normal: gl.getUniformLocation(this.prog, 'uNormal'),
-      color: gl.getUniformLocation(this.prog, 'uColor'),
-      alpha: gl.getUniformLocation(this.prog, 'uAlpha'),
-      emit: gl.getUniformLocation(this.prog, 'uEmit'),
+      VP: gl.getUniformLocation(this.prog,'uVP'), model: gl.getUniformLocation(this.prog,'uModel'),
+      normal: gl.getUniformLocation(this.prog,'uNormal'), color: gl.getUniformLocation(this.prog,'uColor'),
+      alpha: gl.getUniformLocation(this.prog,'uAlpha'), emit: gl.getUniformLocation(this.prog,'uEmit'),
     };
-    this.yaw = 0.85; this.pitch = -0.28; this.dist = 3.8;
-    this.state = {
-      speed: 0, turn: 0, gait: 0, wing: 0, wingPhase: 0,
-      proboscis: 0, jump: 0, groom: 0, heading: 0, bob: 0, lift: 0,
+    this.gu = { VP: gl.getUniformLocation(this.gprog,'uVP'), origin: gl.getUniformLocation(this.gprog,'uOrigin') };
+
+    this.yaw = 0.75; this.pitch = -0.26; this.dist = 3.4; this.userMoved = false;
+    this.camAt = [0, 0, 0];
+    this.s = {
+      pos:[0,0,0], heading:0, pitch:0, roll:0, h:H,
+      speed:0, turn:0, gait:0, wing:0, wingPhase:0,
+      proboscis:0, groom:0, groomPhase:0, jump:0, lift:0, airborne:0,
     };
+    // feet live in world space; stance feet stay planted
+    this.feet = LEGS.map(L => [L.reach[0], 0, L.reach[1]]);
+    this.planted = LEGS.map(() => true);
     this._bind();
   }
 
-  _bind() {
-    const c = this.canvas; let drag = false, lx = 0, ly = 0;
-    c.addEventListener('pointerdown', e => { c.setPointerCapture(e.pointerId); drag = true; this.userMoved = true; lx = e.clientX; ly = e.clientY; });
-    c.addEventListener('pointermove', e => { if (!drag) return;
-      this.yaw += (e.clientX - lx) * 0.008; this.pitch = Math.max(-1.3, Math.min(0.5, this.pitch + (e.clientY - ly) * 0.006));
-      lx = e.clientX; ly = e.clientY; });
-    c.addEventListener('pointerup', () => drag = false);
-    c.addEventListener('pointercancel', () => drag = false);
-    c.addEventListener('wheel', e => { e.preventDefault();
-      this.dist = Math.max(2.2, Math.min(11, this.dist * Math.exp(e.deltaY * 0.0012))); }, { passive: false });
+  _bind(){
+    const c=this.canvas; let drag=false,lx=0,ly=0;
+    c.addEventListener('pointerdown',e=>{c.setPointerCapture(e.pointerId);drag=true;this.userMoved=true;lx=e.clientX;ly=e.clientY;});
+    c.addEventListener('pointermove',e=>{ if(!drag)return;
+      this.yaw+=(e.clientX-lx)*0.008;
+      this.pitch=Math.max(-1.25,Math.min(0.25,this.pitch+(e.clientY-ly)*0.006));
+      lx=e.clientX; ly=e.clientY;});
+    c.addEventListener('pointerup',()=>drag=false);
+    c.addEventListener('pointercancel',()=>drag=false);
+    c.addEventListener('wheel',e=>{e.preventDefault();
+      this.dist=Math.max(1.5,Math.min(9,this.dist*Math.exp(e.deltaY*0.0012)));},{passive:false});
   }
 
-  /* drive: {walk, turn, stop, backward, escape, proboscis, wing, groom} all 0..1 */
-  update(drive, dt) {
-    const s = this.state;
-    const stop = drive.stop || 0;
-    const fwd = (drive.walk || 0) * (1 - stop) - (drive.backward || 0) * (1 - stop);
-    s.speed += (fwd - s.speed) * Math.min(1, dt * 6);
-    s.turn += ((drive.turn || 0) * (1 - stop) - s.turn) * Math.min(1, dt * 5);
-    s.gait += dt * (2.0 + Math.abs(s.speed) * 13) * (Math.abs(s.speed) > 0.02 ? 1 : 0);
-    s.heading += s.turn * dt * 2.1;
-    const wingTarget = Math.max(drive.wing || 0, drive.escape || 0);
-    s.wing += (wingTarget - s.wing) * Math.min(1, dt * 7);
-    s.wingPhase += dt * 60 * (0.2 + s.wing);
-    s.proboscis += ((drive.proboscis || 0) - s.proboscis) * Math.min(1, dt * 8);
-    s.groom += ((drive.groom || 0) - s.groom) * Math.min(1, dt * 5);
-    s.jump += ((drive.escape || 0) - s.jump) * Math.min(1, dt * (drive.escape > s.jump ? 22 : 3));
-    s.lift += (s.jump * 0.62 - s.lift) * Math.min(1, dt * 8);
-    s.bob = Math.sin(s.gait * 2) * 0.018 * Math.abs(s.speed);
-    if (!this.userMoved) this.yaw += dt * 0.22;
+  /* drive values are 0..1 except turn which is -1..1 */
+  update(d, dt){
+    const s = this.s;
+    dt = Math.min(dt, 0.05);
+    const stop = d.stop || 0;
+    const fwd = ((d.walk || 0) - (d.backward || 0)) * (1 - stop);
+    s.speed += (fwd - s.speed) * Math.min(1, dt * 5);
+    s.turn  += ((d.turn || 0) * (1 - stop) - s.turn) * Math.min(1, dt * 4);
+    s.jump  += ((d.escape || 0) - s.jump) * Math.min(1, dt * (d.escape > s.jump ? 20 : 2.5));
+    s.wing  += (Math.max(d.wing || 0, d.escape || 0) - s.wing) * Math.min(1, dt * 7);
+    s.proboscis += ((d.proboscis || 0) - s.proboscis) * Math.min(1, dt * 8);
+    s.groom += ((d.groom || 0) - s.groom) * Math.min(1, dt * 4);
+
+    // takeoff: rise, pitch nose-up, and stop caring about the ground
+    s.airborne += (s.jump - s.airborne) * Math.min(1, dt * 5);
+    s.lift += (s.jump * 0.55 - s.lift) * Math.min(1, dt * 6);
+    s.h = H + s.lift;
+    s.pitch += (-s.jump * 0.42 - s.pitch) * Math.min(1, dt * 6);
+    s.roll  += (s.turn * -0.20 - s.roll) * Math.min(1, dt * 5);
+
+    // travel through the world
+    s.heading += s.turn * dt * 1.9;
+    const v = s.speed * 1.15;
+    s.pos[0] += Math.sin(s.heading) * v * dt;
+    s.pos[2] += Math.cos(s.heading) * v * dt;
+    s.pos[1] = s.lift;
+
+    // gait clock only advances while actually walking
+    const moving = Math.abs(s.speed) > 0.03 && s.airborne < 0.5;
+    s.gait += dt * (3.4 + Math.abs(s.speed) * 9) * (moving ? 1 : 0);
+    s.wingPhase += dt * (14 + s.wing * 46);
+    s.groomPhase += dt * 9.0;   // grooming has its own clock; the gait clock stops when standing
+
+    this._steps(moving, dt);
   }
 
-  resize() {
+  /* stance/swing bookkeeping: a planted foot stays where it is until its turn to swing */
+  _steps(moving, dt){
+    const s = this.s;
+    const fwdv = [Math.sin(s.heading), 0, Math.cos(s.heading)];
+    const rightv = [Math.cos(s.heading), 0, -Math.sin(s.heading)];
+    for (let i = 0; i < LEGS.length; i++) {
+      const L = LEGS[i];
+      const home = add3(add3(s.pos, mul3(rightv, L.reach[0])), mul3(fwdv, L.reach[1]));
+      if (!moving || s.airborne > 0.5) {
+        // stand (or tuck up in flight): ease every foot back to its home spot
+        const k = Math.min(1, dt * (s.airborne > 0.5 ? 7 : 4));
+        for (let a = 0; a < 3; a++) this.feet[i][a] += (home[a] - this.feet[i][a]) * k;
+        this.feet[i][1] = s.airborne * 0.12;
+        this.planted[i] = s.airborne < 0.5;
+        continue;
+      }
+      const ph = (s.gait / (Math.PI * 2) + (L.tripod ? 0.5 : 0)) % 1;
+      const swinging = ph > 0.5;
+      if (!swinging) {
+        this.planted[i] = true;                     // stance: the ground holds it
+        this.feet[i][1] = 0;
+      } else {
+        // swing: arc forward to the landing spot for the next stance
+        const u = (ph - 0.5) * 2;
+        const target = add3(home, mul3(fwdv, STRIDE * 0.5 * Math.sign(s.speed || 1)));
+        const from = add3(home, mul3(fwdv, -STRIDE * 0.5 * Math.sign(s.speed || 1)));
+        for (let a = 0; a < 3; a++) this.feet[i][a] = from[a] + (target[a] - from[a]) * u;
+        this.feet[i][1] = Math.sin(u * Math.PI) * 0.13;
+        this.planted[i] = false;
+      }
+    }
+  }
+
+  resize(){
     const dpr = Math.min(devicePixelRatio || 1, 2);
     const w = Math.max(1, Math.floor(this.canvas.clientWidth * dpr));
     const h = Math.max(1, Math.floor(this.canvas.clientHeight * dpr));
@@ -172,85 +282,177 @@ export class FlyView {
     return [w, h];
   }
 
-  draw() {
-    const gl = this.gl, s = this.state;
+  draw(){
+    const gl = this.gl, s = this.s;
     const [w, h] = this.resize();
     gl.viewport(0, 0, w, h);
-    gl.clearColor(0.035, 0.055, 0.064, 1);
+    gl.clearColor(0.031, 0.051, 0.059, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.enable(gl.DEPTH_TEST); gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
-    gl.useProgram(this.prog);
+    gl.enable(gl.DEPTH_TEST);
 
+    // camera trails the fly instead of being glued to it
+    for (let a = 0; a < 3; a++) this.camAt[a] += (s.pos[a] - this.camAt[a]) * 0.16;
+    if (!this.userMoved) this.yaw += 0.0022;
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
-    const eye = [this.dist * cp * Math.sin(this.yaw), -this.dist * sp + 0.42 + s.lift * 0.75, this.dist * cp * Math.cos(this.yaw)];
-    // the camera tracks the takeoff so the fly cannot leave the frame
-    const look = [0, 0.1 + s.lift * 0.75, 0];
-    const vp = M.mul(M.perspective(0.72, w / h, 0.1, 60), M.lookAt(eye, look, [0, 1, 0]));
-    gl.uniformMatrix4fv(this.u.VP, false, vp);
+    const focus = [this.camAt[0], this.camAt[1] + 0.22, this.camAt[2]];
+    const eye = [focus[0] + this.dist * cp * Math.sin(this.yaw),
+                 focus[1] - this.dist * sp + 0.30,
+                 focus[2] + this.dist * cp * Math.cos(this.yaw)];
+    const vp = M.mul(M.perspective(0.70, w / h, 0.05, 80), M.lookAt(eye, focus, [0, 1, 0]));
 
-    const root = M.trs([0, s.lift + s.bob, 0], s.jump * -0.35, s.heading, 0, 1);
-    const part = (mesh, local, color, alpha = 1, emit = 0) => {
-      const m = M.mul(root, local);
+    // ground
+    gl.useProgram(this.gprog);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.depthMask(false);
+    gl.uniformMatrix4fv(this.gu.VP, false, vp);
+    gl.uniform2f(this.gu.origin, s.pos[0], s.pos[2]);
+    gl.bindVertexArray(this.ground.vao);
+    gl.drawElements(gl.TRIANGLES, this.ground.count, gl.UNSIGNED_SHORT, 0);
+    gl.depthMask(true);
+
+    gl.useProgram(this.prog);
+    gl.uniformMatrix4fv(this.u.VP, false, vp);
+    const part = (mObj, m, color, alpha = 1, emit = 0) => {
       gl.uniformMatrix4fv(this.u.model, false, m);
       gl.uniformMatrix3fv(this.u.normal, false, M.normalOf(m));
       gl.uniform3fv(this.u.color, color);
-      gl.uniform1f(this.u.alpha, alpha);
-      gl.uniform1f(this.u.emit, emit);
-      gl.bindVertexArray(mesh.vao);
-      gl.drawElements(gl.TRIANGLES, mesh.count, gl.UNSIGNED_SHORT, 0);
+      gl.uniform1f(this.u.alpha, alpha); gl.uniform1f(this.u.emit, emit);
+      gl.bindVertexArray(mObj.vao);
+      gl.drawElements(gl.TRIANGLES, mObj.count, gl.UNSIGNED_SHORT, 0);
     };
 
-    // body
-    part(this.sphere, M.trs([0, 0.30, -0.52], 0, 0, 0, [0.46, 0.42, 0.86]), COL.abdomen);
-    part(this.sphere, M.trs([0, 0.34, -0.06], 0, 0, 0, [0.50, 0.46, 0.62]), COL.thorax);
-    const headBob = s.groom * Math.sin(s.gait * 6) * 0.05;
-    part(this.sphere, M.trs([0, 0.36 + headBob, 0.42], 0, 0, 0, [0.42, 0.40, 0.38]), COL.head);
-    for (const sd of [-1, 1])
-      part(this.sphere, M.trs([sd * 0.16, 0.40 + headBob, 0.48], 0, 0, 0, [0.22, 0.30, 0.26]), COL.eye, 1, 0.18);
-    // proboscis
-    const pl = 0.06 + s.proboscis * 0.24;
-    part(this.sphere, M.trs([0, 0.24 + headBob - pl * 0.5, 0.50], 0, 0, 0, [0.08, pl, 0.08]), COL.proboscis);
-    // halteres
-    for (const sd of [-1, 1])
-      part(this.sphere, M.trs([sd * 0.17, 0.33, -0.24], 0, 0, 0, 0.055), COL.halter);
-
-    // legs
-    for (let i = 0; i < LEGS.length; i++) {
-      const L = LEGS[i];
-      const ph = s.gait + (L.group ? Math.PI : 0);
-      const swing = Math.sin(ph), lift = Math.max(0, Math.sin(ph)) * Math.abs(s.speed);
-      const groomFront = (i < 2) ? s.groom : 0;
-      const base = [L.side * 0.17, 0.30, L.z];
-      const outward = L.side * L.spread;
-      const femRot = 0.5 + swing * 0.32 * Math.abs(s.speed) + groomFront * 1.15 + s.jump * 0.9;
-      const tibRot = -1.05 - lift * 0.5 - groomFront * 1.5 - s.jump * 1.3;
-      const seg = (off, rot, len, thick) => M.trs(
-        [base[0] + outward * off * 0.42, base[1] - off * 0.30 + lift * 0.10, base[2] + off * 0.08],
-        rot, 0, L.side * (0.55 + off * 0.25), [thick, len, thick]);
-      part(this.sphere, seg(0.0, femRot, L.len * 0.55, 0.052), COL.leg);
-      part(this.sphere, seg(0.9, femRot + tibRot, L.len * 0.62, 0.042), COL.leg);
-      part(this.sphere, seg(1.8, femRot + tibRot * 1.6, L.len * 0.45, 0.030), COL.leg);
+    // contact shadow, fading as she lifts off
+    const sh = Math.max(0, 1 - s.lift * 2.2);
+    if (sh > 0.02) {
+      const m = M.mul(M.translate([s.pos[0], 0.004, s.pos[2]]), M.scaleRot([1.05 + s.lift, 0.001, 1.5 + s.lift]));
+      part(this.sphere, m, [0.0, 0.0, 0.0], 0.42 * sh);
     }
 
-    // wings — drawn last, translucent
-    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    gl.disable(gl.CULL_FACE);
-    const beat = Math.sin(s.wingPhase) * (0.18 + s.wing * 1.05);
+    const body = M.body([s.pos[0], s.h, s.pos[2]], s.heading, s.pitch, s.roll);
+    const L2W = (p) => [                                   // body-local point -> world
+      body[0]*p[0] + body[4]*p[1] + body[8]*p[2] + body[12],
+      body[1]*p[0] + body[5]*p[1] + body[9]*p[2] + body[13],
+      body[2]*p[0] + body[6]*p[1] + body[10]*p[2] + body[14]];
+    const local = (m) => M.mul(body, m);
+    const headY = 0.055 + s.groom * Math.sin(s.groomPhase) * 0.025;
+
+    gl.disable(gl.BLEND);
+    // abdomen in three tapering segments
+    for (let k = 0; k < 3; k++) {
+      const f = k / 2;
+      part(this.sphere, local(M.mul(M.translate([0, 0.012 - f * 0.012, -0.20 - k * 0.155]),
+        M.scaleRot([0.235 - f * 0.075, 0.215 - f * 0.07, 0.20 - f * 0.03]))), COL.abdomen);
+    }
+    part(this.sphere, local(M.mul(M.translate([0, 0.02, 0.03]), M.scaleRot([0.255, 0.245, 0.34]))), COL.thorax);
+    part(this.sphere, local(M.mul(M.translate([0, headY, 0.30]), M.scaleRot([0.215, 0.205, 0.185]))), COL.head);
     for (const sd of [-1, 1]) {
-      const m = M.trs([sd * 0.13, 0.48, -0.10], beat * 0.55, sd * (0.35 + beat * 0.30), sd * (0.55 + beat), [1.05, 1, 1.05]);
-      part(this.wing, M.mul(m, M.trs([0, 0, 0], 0, 0, 0, [1, 1, sd])), COL.wing, 0.24 + s.wing * 0.12);
+      part(this.sphere, local(M.mul(M.translate([sd * 0.085, headY + 0.02, 0.325]),
+        M.scaleRot([0.12, 0.155, 0.135]))), COL.eye, 1, 0.22);
+      // antenna: a short pedicel and the arista
+      const a0 = [sd * 0.045, headY - 0.03, 0.40], a1 = [sd * 0.075, headY - 0.10, 0.45];
+      part(this.sphere, M.bone(L2W(a0), L2W(a1), 0.030), COL.antenna);
+      part(this.sphere, M.bone(L2W(a1), L2W([sd * 0.13, headY - 0.15, 0.52]), 0.012), COL.bristle);
+      // halteres, beating out of phase with the wings as they really do
+      const hb = Math.sin(s.wingPhase + Math.PI) * (0.05 + s.wing * 0.10);
+      part(this.sphere, local(M.mul(M.translate([sd * 0.135, 0.02 + hb, -0.10]), M.scaleRot([0.05, 0.05, 0.05]))), COL.halter);
+    }
+    // proboscis, extending straight down from the mouthparts
+    const pl = 0.05 + s.proboscis * 0.26;
+    part(this.sphere, M.bone(L2W([0, headY - 0.10, 0.31]), L2W([0, headY - 0.10 - pl, 0.31]), 0.075), COL.proboscis);
+
+    // legs, solved by two-link IK onto the foot targets
+    for (let i = 0; i < LEGS.length; i++) {
+      const L = LEGS[i];
+      const coxaL = [L.side * 0.125, -0.045, L.z];
+      const coxa = L2W(coxaL);
+      const hipL = [L.side * 0.20, -0.105, L.z];
+      const hip = L2W(hipL);
+      part(this.sphere, M.bone(coxa, hip, 0.075), COL.coxa);
+
+      const groomLift = (i < 2) ? s.groom : 0;
+      let foot = this.feet[i];
+      if (groomLift > 0.05) {          // front legs sweep over the head when grooming
+        const sweep = Math.sin(s.groomPhase) * 0.06;
+        const target = L2W([L.side * (0.12 + sweep), headY + 0.09 + Math.cos(s.groomPhase) * 0.05, 0.33]);
+        foot = [foot[0] * (1 - groomLift) + target[0] * groomLift,
+                foot[1] * (1 - groomLift) + target[1] * groomLift,
+                foot[2] * (1 - groomLift) + target[2] * groomLift];
+      }
+      const knee = solveIK(hip, foot, L.femur, L.tibia, L2W([L.side * 2.0, 1.4, 0]), hip);
+      part(this.sphere, M.bone(hip, knee, 0.058), COL.femur);
+      const ankle = [knee[0] + (foot[0] - knee[0]) * 0.82,
+                     knee[1] + (foot[1] - knee[1]) * 0.82,
+                     knee[2] + (foot[2] - knee[2]) * 0.82];
+      part(this.sphere, M.bone(knee, ankle, 0.044), COL.tibia);
+      part(this.sphere, M.bone(ankle, foot, 0.030), COL.tarsus);
+    }
+
+    // wings last, translucent, with a tilted stroke plane
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    const fly = s.wing;                                   // 0 = folded at rest, 1 = beating
+    const amp = fly * 1.15;
+    const stroke = Math.sin(s.wingPhase) * amp;
+    const dev = Math.cos(s.wingPhase * 2) * amp * 0.22;   // figure-eight deviation
+    for (const sd of [-1, 1]) {
+      const root = [sd * 0.10, 0.115, 0.00];
+      // at rest the wings lie back along the abdomen; in flight they sweep out and up
+      const restTip   = [sd * 0.085, 0.085, -0.66];
+      const flightTip = [sd * (0.24 + Math.cos(stroke) * 0.40),
+                         0.12 + Math.sin(stroke) * 0.34 + dev,
+                         -0.30 + Math.abs(stroke) * 0.16];
+      const tip = [restTip[0] + (flightTip[0] - restTip[0]) * fly,
+                   restTip[1] + (flightTip[1] - restTip[1]) * fly,
+                   restTip[2] + (flightTip[2] - restTip[2]) * fly];
+      const m = wingMatrix(L2W(root), L2W(tip), L2W([root[0] + sd * 0.12, root[1] + 0.30, root[2]]), sd);
+      part(this.wing, m, COL.wing, 0.22 + fly * 0.16);
     }
     gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
   }
 }
 
-function upload(gl, prog, m) {
+/* two-link IK: knee position given hip, foot, segment lengths and a bend hint */
+function solveIK(hip, foot, l1, l2, hint, origin) {
+  const d = sub3(foot, hip);
+  let D = len3(d);
+  const maxD = (l1 + l2) * 0.995, minD = Math.abs(l1 - l2) + 1e-3;
+  D = Math.max(minD, Math.min(maxD, D));
+  const dir = mul3(d, 1 / (len3(d) || 1e-4));
+  // cosine rule for the angle between the femur and the hip->foot line
+  const cosA = Math.max(-1, Math.min(1, (l1 * l1 + D * D - l2 * l2) / (2 * l1 * D)));
+  const a = Math.acos(cosA);
+  // bend the knee away from the body: build a perpendicular in the hint direction
+  let up = sub3(hint, origin);
+  up = sub3(up, mul3(dir, dot3(up, dir)));
+  if (len3(up) < 1e-4) up = [0, 1, 0];
+  up = nrm3(up);
+  const fem = add3(mul3(dir, Math.cos(a) * l1), mul3(up, Math.sin(a) * l1));
+  return add3(hip, fem);
+}
+
+/* place the wing quad so its x axis runs root->tip and it stays roughly flat */
+function wingMatrix(root, tip, upRef, sd) {
+  const x = sub3(tip, root), L = len3(x) || 1e-4;
+  const xn = mul3(x, 1 / L);
+  let up = nrm3(sub3(upRef, root));
+  let z = nrm3(cross3(xn, up));
+  if (sd < 0) z = mul3(z, -1);
+  const y = cross3(z, xn);
+  return new Float32Array([xn[0]*L, xn[1]*L, xn[2]*L, 0,
+                           y[0], y[1], y[2], 0,
+                           z[0]*L, z[1]*L, z[2]*L, 0,
+                           root[0], root[1], root[2], 1]);
+}
+
+function mesh(gl, prog, m) {
   const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
-  for (const [name, data, size] of [['aPos', m.pos, 3], ['aNrm', m.nrm, 3]]) {
+  const attrs = [['aPos', m.pos, 3]];
+  if (gl.getAttribLocation(prog, 'aNrm') >= 0) attrs.push(['aNrm', m.nrm, 3]);
+  for (const [name, data, size] of attrs) {
     const b = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(prog, name);
+    if (loc < 0) continue;
     gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
   }
   const ib = gl.createBuffer();

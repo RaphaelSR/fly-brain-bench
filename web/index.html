@@ -77,7 +77,7 @@
 
 <main>
   <aside class="rail left">
-    <h2 class="rail-title" data-i18n="rail.stimulate"></h2>
+    <h2 class="rail-title"><span data-i18n="rail.stimulate"></span><button class="info" data-info="stimulate" aria-label="info">i</button></h2>
     <div id="library"></div>
   </aside>
 
@@ -87,9 +87,10 @@
       <div id="inspect"></div>
       <div id="legend" class="legend"></div>
       <div class="well-hint" data-i18n="well.hint"></div>
+      <div class="well-info"><button class="info" data-info="brain" aria-label="info">i</button></div>
     </div>
     <div class="channels">
-      <h2 class="rail-title"><span data-i18n="rail.channels"></span>
+      <h2 class="rail-title"><span data-i18n="rail.channels"></span><button class="info" data-info="channels" aria-label="info">i</button>
         <span class="mono dim" data-i18n="body.engineered"></span></h2>
       <div id="chanBody"></div>
     </div>
@@ -97,16 +98,16 @@
 
   <aside class="rail right">
     <section class="panel fly-panel">
-      <h2 class="rail-title"><span data-i18n="body.title"></span>
+      <h2 class="rail-title"><span data-i18n="body.title"></span><button class="info" data-info="body" aria-label="info">i</button>
         <span id="behaveNow" class="mono beh">—</span></h2>
       <canvas id="flywell"></canvas>
     </section>
 
     <section class="panel">
-      <h2 class="rail-title"><span data-i18n="train.title"></span>
+      <h2 class="rail-title"><span data-i18n="train.title"></span><button class="info" data-info="decoder" aria-label="info">i</button>
         <span class="seg"><button id="modeRules" class="on" data-i18n="train.mode.rules"></button><button id="modeLearned" data-i18n="train.mode.learned"></button></span>
       </h2>
-      <p class="tiny" data-i18n="train.pick"></p>
+      <p class="tiny"><button class="info" data-info="train" aria-label="info">i</button><span data-i18n="train.pick"></span></p>
       <div id="behavePick" class="behave-grid"></div>
       <div class="train-row">
         <button id="btnTrain" class="primary sm" disabled></button>
@@ -121,7 +122,7 @@
       <p class="sel-name" id="selName">—</p>
       <p class="sel-meta mono" data-i18n-html="rail.atrate" id="selMeta"></p>
       <p class="sel-why" id="selWhy"></p>
-      <h2 class="rail-title mt"><span data-i18n="rail.responding"></span>
+      <h2 class="rail-title mt"><span data-i18n="rail.responding"></span><button class="info" data-info="responding" aria-label="info">i</button>
         <span class="mono dim"><b id="respCount">0</b> <i data-i18n="rail.types"></i></span></h2>
       <div id="respBody"></div>
     </section>
@@ -140,7 +141,10 @@
   <label class="slider"><span data-i18n="tp.structure"></span>
     <input id="glow" type="range" min="0.05" max="1.1" step="0.01" value="0.34">
   </label>
+  <button class="info" data-info="transport" aria-label="info">i</button>
 </footer>
+
+<div id="infoPop" role="dialog" aria-live="polite"><h4></h4><p></p></div>
 
 <div id="explainer">
   <div class="ex-sheet">

@@ -293,6 +293,37 @@ main{grid-template-columns:var(--rail) minmax(0,1fr) var(--railR)}
 #inspect.show{pointer-events:auto}
 
 /* ---------- responsive ---------- */
+
+/* ---------- info affordance ---------- */
+.info{
+  width:15px; height:15px; flex:none; border-radius:50%; border:1px solid var(--line2);
+  font-family:var(--fm); font-size:9.5px; line-height:1; color:var(--ink3);
+  display:inline-grid; place-items:center; margin-left:5px; vertical-align:middle;
+  transition:.14s; padding:0;
+}
+.info:hover{border-color:var(--ach); color:var(--ach)}
+.info.on{border-color:var(--ach); background:var(--ach); color:#150E03}
+.rail-title{gap:0}
+.rail-title > span:first-child{display:inline}
+.well-info{position:absolute; right:14px; top:14px}
+.well-info .info{width:22px; height:22px; font-size:12px; background:rgba(10,16,19,.8); backdrop-filter:blur(5px)}
+.tiny .info{margin:0 6px 0 0}
+.transport > .info{width:18px; height:18px; font-size:11px; margin-left:0}
+#infoPop{
+  position:fixed; z-index:70; width:min(330px, calc(100vw - 16px));
+  background:var(--panel2); border:1px solid var(--line2); border-radius:var(--r);
+  padding:13px 15px; box-shadow:0 14px 34px rgba(0,0,0,.55);
+  display:none;
+}
+#infoPop.open{display:block}
+#infoPop h4{font-family:var(--fd); font-size:13.5px; font-weight:600; margin:0 0 6px; color:var(--ink)}
+#infoPop p{margin:0; font-size:12.2px; line-height:1.5; color:var(--ink2)}
+
+/* the body simulator gets more room */
+:root{--railR:340px}
+#flywell{height:250px}
+
+/* ---------- responsive (must stay last) ---------- */
 @media (max-width:1180px){
   :root{--rail:214px; --railR:256px}
   .top-stats span:nth-child(4){display:none}
@@ -338,7 +369,7 @@ main{grid-template-columns:var(--rail) minmax(0,1fr) var(--railR)}
   .rail.right{border-left:0; border-top:1px solid var(--line); display:block; padding:0}
   .centre{grid-template-rows:auto auto}
   #chanBody{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
-  #flywell{height:210px}
+  #flywell{height:230px}
   .panel.grow{overflow:visible}
   .resp-wrap{overflow:visible; max-height:none}
   .transport{flex-wrap:wrap; gap:14px 20px; padding:12px 13px}

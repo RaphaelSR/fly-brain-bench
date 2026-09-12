@@ -131,7 +131,12 @@ function relabel() {
   });
   document.querySelectorAll('.lib-head').forEach(h => { h.textContent = t(`tag.${h.dataset.tag}`); });
   if (S.selKey) { $('#selName').textContent = t(S.selKey.name, S.selVars); $('#selWhy').textContent = t(S.selKey.why, S.selVars); }
-  buildLegend(); buildBehaviourPicker(); updateTrainUI();
+  buildLegend(); buildBehaviourPicker(); updateTrainUI(); bindInfo();
+  const pop = $('#infoPop');
+  if (pop && pop.classList.contains('open') && pop.dataset.key) {
+    pop.querySelector('h4').textContent = t(`info.${pop.dataset.key}.t`);
+    pop.querySelector('p').textContent = t(`info.${pop.dataset.key}.b`);
+  }
   $('#btnPlay').textContent = t(S.running ? 'tp.pause' : 'tp.run');
   $('#speedOut').textContent = t('tp.perframe', { v: (+$('#speed').value * 0.1).toFixed(1) });
   const ld = $('#loadLabel'); if (ld && ld.dataset.i18n) ld.textContent = t(ld.dataset.i18n);
@@ -185,7 +190,7 @@ function buildUI() {
   $('#btnTrain').addEventListener('click', doTrain);
   $('#btnClear').addEventListener('click', () => { S.dec.clear(); setMode('rules'); updateTrainUI(); });
 
-  buildLegend(); buildChannels(); buildBehaviourPicker(); updateTrainUI();
+  buildLegend(); buildChannels(); buildBehaviourPicker(); updateTrainUI(); bindInfo();
   $('#speedOut').textContent = t('tp.perframe', { v: (+$('#speed').value * 0.1).toFixed(1) });
   schedule();
 }
@@ -328,6 +333,36 @@ function driveType(ti, name, n) {
   applyStimulus(idx, { name: '_raw', why: n === 1 ? 'ins.customOne' : 'ins.customMany' }, { n, t: name });
   $('#selName').textContent = name;
   $('#inspect').classList.remove('show');
+}
+
+/* ---------------- info popovers ---------------- */
+function bindInfo() {
+  const pop = $('#infoPop');
+  const close = () => { pop.classList.remove('open'); document.querySelectorAll('.info.on').forEach(b => b.classList.remove('on')); };
+  document.querySelectorAll('.info').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const wasOpen = btn.classList.contains('on');
+      close();
+      if (wasOpen) return;
+      btn.classList.add('on');
+      pop.querySelector('h4').textContent = t(`info.${btn.dataset.info}.t`);
+      pop.querySelector('p').textContent = t(`info.${btn.dataset.info}.b`);
+      pop.classList.add('open');
+      pop.dataset.key = btn.dataset.info;
+      // place it near the button, kept inside the window
+      pop.style.visibility = 'hidden'; pop.style.left = '0px'; pop.style.top = '0px';
+      const r = btn.getBoundingClientRect(), pr = pop.getBoundingClientRect();
+      let x = Math.min(Math.max(8, r.left - pr.width / 2 + r.width / 2), innerWidth - pr.width - 8);
+      let y = r.bottom + 8;
+      if (y + pr.height > innerHeight - 8) y = Math.max(8, r.top - pr.height - 8);
+      pop.style.left = `${Math.round(x)}px`; pop.style.top = `${Math.round(y)}px`;
+      pop.style.visibility = '';
+    });
+  });
+  document.addEventListener('click', close);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  pop.addEventListener('click', e => e.stopPropagation());
 }
 
 /* ---------------- frame loop ---------------- */
