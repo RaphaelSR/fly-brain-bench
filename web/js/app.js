@@ -184,7 +184,13 @@ function buildUI() {
 
 function selectPreset(p) {
   document.querySelectorAll('.preset').forEach(b => b.classList.toggle('on', b.dataset.id === p.id));
+  S.activePreset = p.id;
   const idx = p._idx || resolvePreset(p, S.labels, S.meta.dicts);
+  applyStimulus(idx, p.name, p.why);
+}
+
+function applyStimulus(idx, name, why) {
+  if (!idx.length) return;
   S.selected = idx;
   S.view.sel.fill(0);
   for (const i of idx) S.view.sel[i] = 1;
@@ -192,8 +198,8 @@ function selectPreset(p) {
   S.spikeAccum.fill(0); S.ratesWindow.fill(0);
   S.view.act.fill(0); S.view.uploadAct();
   S.worker.postMessage({ cmd: 'stim', idx: Int32Array.from(idx) });
-  $('#selName').textContent = p.name;
-  $('#selWhy').textContent = p.why;
+  $('#selName').textContent = name;
+  $('#selWhy').textContent = why;
   $('#selCount').textContent = idx.length;
   const types = new Map();
   for (const i of idx) {
@@ -212,21 +218,60 @@ function setRunning(on) {
   $('#btnPlay').classList.toggle('on', on);
 }
 
+/* FlyWire root ids are only needed once someone inspects a cell, so they load lazily. */
+let rootIdsPromise = null;
+function rootIds() {
+  if (!rootIdsPromise) rootIdsPromise = fetchGz('data/rootids.bin.gz')
+    .then(b => new BigUint64Array(b.buffer, b.byteOffset, S.meta.n_neurons))
+    .catch(() => null);
+  return rootIdsPromise;
+}
+
 function showNeuron(i) {
   const box = $('#inspect');
   if (i < 0) { box.classList.remove('show'); return; }
   const d = S.meta.dicts, L = S.labels;
-  const rootId = '—';
+  const type = d.cell_type[L.cellType[i]];
+  const sameType = countType(L.cellType[i]);
   box.classList.add('show');
   box.innerHTML = `
-    <div class="ins-type">${escapeHtml(d.cell_type[L.cellType[i]])}</div>
+    <div class="ins-type">${escapeHtml(type)}</div>
     <dl>
       <dt>Region</dt><dd>${escapeHtml(d.super_class[L.superClass[i]])}</dd>
       <dt>Class</dt><dd>${escapeHtml(d.cell_class[L.cellClass[i]])}</dd>
       <dt>Transmitter</dt><dd>${escapeHtml(d.top_nt[L.nt[i]])}</dd>
       <dt>Side</dt><dd>${escapeHtml(d.side[L.side[i]])}</dd>
-      <dt>Rate now</dt><dd class="num">${(S.ratesWindow[i] * 2).toFixed(0)} Hz</dd>
-    </dl>`;
+      <dt>Firing now</dt><dd class="num">${(S.ratesWindow[i] * 2).toFixed(0)} Hz</dd>
+    </dl>
+    <button class="ins-go" id="insDrive">${sameType === 1 ? `Drive this ${escapeHtml(type)} cell` : `Drive all ${sameType} ${escapeHtml(type)} cells`}</button>
+    <a class="ins-link" id="insCodex" target="_blank" rel="noopener">Open in FlyWire Codex &rarr;</a>`;
+  $('#insDrive').addEventListener('click', () => driveType(L.cellType[i], type, sameType));
+  rootIds().then(ids => {
+    const a = $('#insCodex');
+    if (!a) return;
+    if (!ids) { a.remove(); return; }
+    a.href = `https://codex.flywire.ai/app/cell_details?root_id=${ids[i].toString()}`;
+  });
+}
+
+function countType(ti) {
+  if (!S.typeTally) {
+    S.typeTally = new Int32Array(S.meta.dicts.cell_type.length);
+    const ct = S.labels.cellType;
+    for (let k = 0; k < ct.length; k++) S.typeTally[ct[k]]++;
+  }
+  return S.typeTally[ti];
+}
+
+/* Stimulate an arbitrary cell type picked straight out of the viewport. */
+function driveType(ti, name, n) {
+  const ct = S.labels.cellType, idx = [];
+  for (let k = 0; k < ct.length; k++) if (ct[k] === ti) idx.push(k);
+  document.querySelectorAll('.preset').forEach(b => b.classList.remove('on'));
+  applyStimulus(idx, name, n === 1
+    ? `A single ${name} cell, driven at 150 Hz — one neuron you picked out of the viewport yourself.`
+    : `All ${n} annotated ${name} cells, driven at 150 Hz — a population you picked out of the viewport yourself, not a preset.`);
+  $('#inspect').classList.remove('show');
 }
 
 /* ---------------- frame loop ---------------- */

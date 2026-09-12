@@ -237,3 +237,17 @@ main{display:grid; grid-template-columns:var(--rail) 1fr var(--railR); min-heigh
   .legend{position:static; flex-direction:row; flex-wrap:wrap; background:none; border:0; backdrop-filter:none; padding:0}
   .transport{flex-wrap:wrap}
 }
+
+/* inspector actions */
+.ins-go{
+  display:block; width:100%; margin-top:11px; padding:7px 9px; border-radius:var(--rs);
+  background:var(--ach); color:#150E03; font-size:11.5px; font-weight:600; text-align:center;
+  pointer-events:auto; transition:.14s;
+}
+.ins-go:hover{background:var(--hot)}
+.ins-link{
+  display:block; margin-top:7px; font-family:var(--fm); font-size:10.5px;
+  color:var(--ink3); text-decoration:none; pointer-events:auto;
+}
+.ins-link:hover{color:var(--ach)}
+#inspect.show{pointer-events:auto}
