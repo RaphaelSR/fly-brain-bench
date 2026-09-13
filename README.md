@@ -31,7 +31,7 @@ inputs are five biophysical constants and a wiring diagram somebody measured.
 |---|---|---|
 | `LB3` — sugar taste bristles | `MN10`, `MNx01` — proboscis motor neurons | This is the published benchmark of the model this page implements: taste in, feeding motion out |
 | `LPLC2` — looming detectors | `DNp01` — the giant fibre | `DNp01` is *the* escape-triggering neuron in the fly. Nothing here aims at it; the wiring gets there by itself |
-| `R7`/`R8` — colour photoreceptors | `Dm9`, `Mi15`, `Tm20` — medulla interneurons | Both optic lobes light up in the correct anatomical order |
+| `R7`/`R8` — colour photoreceptors | `Dm9`, `Mi15`, `Tm20` — a few medulla interneurons | The first synapse of the visual pathway responds — but only just, see the limits below |
 
 ---
 
@@ -284,6 +284,14 @@ tools/              Python pipeline: fetch, measure, validate, pack
 - Nothing learns. There is no memory between runs and no behaviour — activity
   spreads, then settles.
 - Connections below 5 synapses are dropped (see the table above).
+- **The visual pathway barely propagates.** Driving all 2,650 R7/R8 photoreceptors
+  for 3 s leaves 106 of 77,530 optic neurons firing and *nothing at all* in the
+  central brain, descending neurons or motor neurons. Most of what you see light up
+  under that preset is the driven photoreceptors themselves. Real R7/R8 are
+  histaminergic and sign-inverting, which this model's transmitter set cannot
+  express, so the first visual synapse is mis-signed. Looming works because `LPLC2`
+  is driven directly, several stages downstream of that break. Measured in
+  `tools/23_light_latency.py`.
 - This is a visualisation built on other people's data. It is not affiliated with
   FlyWire, Janelia, or the authors of the model.
 
