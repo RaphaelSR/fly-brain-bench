@@ -1,20 +1,20 @@
 import * as THREE from '../vendor/three/three.module.min.js';
-import { Arena3D } from '../defend/arena3d.js?v=grounded1';
+import { Arena3D } from '../defend/arena3d.js?v=complete1';
 import { createHomeCourtyard } from './home-scene.js';
 import { ThrowGesture } from './gesture.js';
 import { bindSceneLayout } from '../defend/scene-layout.js';
 import { BrainView } from '../js/gl.js';
-import { BrainInspector } from '../defend/brain-inspector.js?v=play1';
-import { fetchGz, decodeLabels, decodePositions, decodeConnectome } from '../js/data.js';
+import { BrainInspector } from '../defend/brain-inspector.js?v=complete1';
+import { fetchGz, decodeLabels, decodePositions } from '../js/data.js';
 import { detectLocale, setLocale, getLocale, applyDom } from '../js/i18n.js';
 import { sampleEpisode } from '../defend/live.js?v=patio2';
-import { PlayStore, validateSave, LEGACY_KEY, transferLegacy } from './storage.js?v=grounded1';
+import { PlayStore, validateSave, LEGACY_KEY, transferLegacy } from './storage.js?v=complete1';
 import { Policy } from '../defend/policy.js';
-import { PROTOCOL, packPolicy, DIMENSIONS, ACTION_COUNT } from './core.js?v=grounded1';
-import { makeShot, traceShot } from './physics.js?v=grounded1';
-import { COPY } from './copy.js?v=grounded1';
-import { formatReport } from './report.js?v=grounded1';
-import { selectBrain, aimElevation, aimingFraming } from './aiming.js?v=grounded1';
+import { PROTOCOL, packPolicy, DIMENSIONS, ACTION_COUNT } from './core.js?v=complete1';
+import { makeShot, traceShot } from './physics.js?v=complete1';
+import { COPY } from './copy.js?v=complete1';
+import { formatReport } from './report.js?v=complete1';
+import { selectBrain, aimElevation, aimingFraming } from './aiming.js?v=complete1';
 
 const $ = id => document.getElementById(id), c = key => COPY[getLocale()][key];
 const label = (id, value) => { const el = $(id), text = String(value); if (el.textContent !== text) el.textContent = text; };
@@ -28,7 +28,7 @@ let trace, ring, lastPhase, lastSignal = -1, recording = [], lastReplay = null, 
 let propSignature = '', dragging = false;
 const gesture = new ThrowGesture();
 let saveQueue = Promise.resolve(), sequence = 0, lastTime = 0, lastStep = 0;
-const worker = new Worker(new URL('./play.worker.js?v=grounded1', import.meta.url), { type: 'module' });
+const worker = new Worker(new URL('./play.worker.js?v=complete1', import.meta.url), { type: 'module' });
 const requests = new Map();
 worker.onmessage = ({ data }) => {
   const pending = requests.get(data.id);
@@ -106,7 +106,7 @@ function paint() {
   if (!state) return;
   const aiming = state.phase === 'aim' && !replay && !throwing && !restoring;
   $('btnThrow').disabled = !entered || !running || !aiming;
-  for (const id of ['direction', 'power', 'elevation', 'learning', 'reset', 'blank', 'import', 'tidy', 'gestures', 'brainMode', 'legacy']) $(id).disabled = !aiming;
+  for (const id of ['direction', 'power', 'elevation', 'learning', 'reset', 'blank', 'import', 'tidy', 'gestures', 'legacy']) $(id).disabled = !aiming;
   $('btnReplay').disabled = !lastReplay || !aiming;
   const playing = replay ? !replay.paused : running;
   label('btnPlay', c(playing ? 'pause' : 'resume'));
@@ -118,6 +118,7 @@ function paint() {
   label('gestureHint', dragging ? c('release') + ' · ' + $('power').value + '%' : c($('gestures').checked ? 'hint' : 'buttonHint'));
   for (const id of ['hits', 'dodges', 'misses']) label(id, state.stats[id]);
   label('trained', state.trained.toLocaleString(getLocale()));
+  if (state.neural) label('neuralStatus', c('neuralStatus').replace('{n}', state.neural.neurons.toLocaleString(getLocale())).replace('{e}', state.neural.pairs.toLocaleString(getLocale())));
   label('flightStatus', `${c('altitude')}: ${state.frame.height.toFixed(1)} / 6 · ${c('decision')}: ${c('actionNames')[state.signal?.action || 0]}`);
   label('flightHUD', `${c('altitude')}: ${state.frame.height.toFixed(1)} / 6 · ${c('actionNames')[state.signal?.action || 0]}`);
   $('flightHUD').hidden = Boolean(replay);
@@ -132,7 +133,7 @@ function translate() {
   applyDom();
   for (const el of document.querySelectorAll('[data-copy]')) el.textContent = el.dataset.copy === 'evaluationText'
     ? pretrained ? formatReport(c('evaluationText'), pretrained, getLocale(), brainMode) : c('loading') : c(el.dataset.copy);
-  $('brainMode').value = brainMode; label('brainModeNote', c(brainMode === 'whole' ? 'wholeNote' : 'escapeNote'));
+  label('brainModeNote', c('wholeNote'));
   $('brain').setAttribute('aria-label', c('brainTitle'));
   $('lang').value = getLocale(); document.title = `Fly Brain · ${c('title')}`;
   $('labLink').href = `../defend/?lang=${getLocale()}`;
@@ -255,9 +256,6 @@ $('lang').addEventListener('change', () => {
   translate();
 });
 for (const id of ['direction', 'power', 'elevation']) $(id).addEventListener('input', updateAim);
-$('brainMode').addEventListener('change', () => {
-  const url = new URL(location.href); url.searchParams.set('brain', $('brainMode').value); location.href = url.href;
-});
 $('learning').addEventListener('change', async () => {
   try { accept(await request('configure', { learning: $('learning').checked })); } catch { fail(); }
 });
@@ -309,11 +307,12 @@ try {
   ring.rotation.x = -Math.PI / 2; ring.renderOrder = 11; renderer.view.scene.add(ring); bindAim();
   let local = null;
   try { store = new PlayStore(localStorage, brainMode); local = store.load(); hasSaved = !!local; } catch { saveFailed = true; }
-  const response = await fetch('pretrained.json?v=grounded1'); if (!response.ok) throw new Error('Missing pretrained policy');
+  const response = await fetch('pretrained.json?v=complete1'); if (!response.ok) throw new Error('Missing pretrained policy');
   pretrained = await response.json(); validateSave(fresh(pretrained.policy));
   accept(await request('init', { seed: seed(), brain: brainMode, saved: local || fresh(pretrained.policy) }), true);
-  const [m, l, p, b, s] = await Promise.all(['meta.json.gz', 'labels.bin.gz', 'pos.u16.bin.gz', 'conn.bin.gz', 'sign.bin.gz'].map(name => fetchGz(dataPath + name)));
+  const [m, l, p] = await Promise.all([fetchGz('./brain-data/meta.json.gz'), fetchGz(dataPath + 'labels.bin.gz'), fetchGz(dataPath + 'pos.u16.bin.gz')]);
   const meta = JSON.parse(new TextDecoder().decode(m)), n = meta.n_neurons;
+  if (n !== state.neural.neurons || meta.n_edges !== state.neural.pairs || meta.threshold !== 1) throw new Error('Inspector and simulation must use the same anatomy');
   const labels = decodeLabels(l, n), geom = decodePositions(p, n, meta.bbox_lo, meta.span);
   brain = new BrainView($('brain'), geom.pos, labels.nt, geom.radius);
   if (brainMode === 'whole') {
@@ -323,7 +322,9 @@ try {
   }
   const colors = { acetylcholine: [0.96, 0.68, 0.26], gaba: [0.28, 0.58, 0.88], glutamate: [0.64, 0.45, 0.87], dopamine: [0.35, 0.78, 0.55], serotonin: [0.90, 0.45, 0.65], octopamine: [0.30, 0.78, 0.80], unknown: [0.45, 0.52, 0.55] };
   brain.setNTColors(meta.dicts.top_nt.map(name => colors[name] || colors.unknown));
-  inspector = new BrainInspector(brain, meta, labels, decodeConnectome(b, n, meta.n_edges, s));
+  inspector = new BrainInspector(brain, meta, labels, null, async focus => {
+    try { return (await request('inspect', { focus })).graph; } catch (error) { fail(); throw error; }
+  });
   await renderer.environment.ready;
   $('cinematic').checked = !matchMedia('(prefers-reduced-motion: reduce)').matches;
   $('enter').disabled = false; translate(); requestAnimationFrame(animate);

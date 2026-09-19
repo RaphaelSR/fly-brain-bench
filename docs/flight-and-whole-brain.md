@@ -1,4 +1,4 @@
-# Sustained flight and the wider-brain experiment
+# Sustained flight and source-complete brain simulation
 
 ## What is implemented
 
@@ -25,7 +25,40 @@ Learning starts enabled. Disabling it freezes both heads, including normalizatio
 Navigation and escape do not update one another’s weights. The connectome itself
 never learns. The navigation imitation teacher runs only in the offline trainer.
 
-## What the wider brain means
+## Current playable mode: complete source graph
+
+Play now requires **138,639 neurons, 15,091,983 directed pairs and 54,492,922
+aggregated synapses** from the local v783 source file. It retains every pair,
+including single-synapse connections, and preserves counts up to 2,405 rather
+than clipping them at 127. Complete means all entries of this source file,
+not complete biology.
+
+The worker validates metadata and SHA-256 payload hashes. Neither a URL parameter
+nor a loading failure can select a smaller graph. Failure is reported instead.
+The inspector queries the same graph in that worker, avoiding a second complete
+copy. It draws at most 160 selected edges and highlights up to 1,400 cells above
+the activity threshold: these are display limits, not neural-network pruning.
+Not every neuron should fire at once. Fourteen missing positions remain hidden.
+
+Learning starts enabled and persists in the browser. Existing wider-profile
+motor weights and scores remain available; prior subcircuit saves are untouched.
+Learning updates two motor readouts, **not anatomical synapses**. The 49 neural
+features, 27 engineered inputs, artificial goals and synthetic looming stimulus
+remain approximations. Electrical state resets at release. A larger graph is
+not a claim of complete intelligence or guaranteed improvement.
+
+Build with `.venv/bin/python tools/build_complete_brain.py`; cached arrays are
+checked against every source row before packing. See
+[provenance](../web/play/brain-data/README.md).
+Local Node 20 ARM64 median / p95 observation cost was **45.97 / 63.88 ms**.
+The graph arrays alone occupy **121,290,424 bytes**; compressed connectivity is
+**30,663,497 bytes**. These are not total memory or mobile-frame-rate measurements.
+
+There is not yet a new held-out behavioral evaluation for this unpruned graph.
+The pretrained report below is **historical evidence for filtered graphs**,
+not evidence of performance in the current configuration.
+
+## Historical wider-brain experiment (threshold 5)
 
 The existing FlyWire v783 package contains 138,639 neurons and 2,700,513 directed
 connected pairs. It retains pairs with at least five synapses; it is **not an
@@ -44,7 +77,7 @@ Independent whole-brain offline training remains future work; online learning
 can adapt each profile separately. Neither profile is a living fly or a
 validated reconstruction of all fly intelligence.
 
-## Training and held-out results
+## Historical filtered-graph training and held-out results
 
 See [trainer](../tools/train-flight.mjs), [artifact](../web/play/pretrained.json)
 and [archived courtyard checkpoint](../tools/fixtures/patio-v2.json).
@@ -86,14 +119,14 @@ node --experimental-default-type=module tools/train-flight.mjs --evaluate
 node --experimental-default-type=module --test tests/*.test.mjs
 ```
 
-## Cost and persistence
+## Historical cost and persistence
 
 [CPU benchmark](../web/play/brain-benchmark.json):
 Node 20.14.0, macOS ARM64, five warm-ups and forty observations per profile.
 A 180-biological-ms neural observation had local median / p95 times of
 4.67 / 6.88 ms for the subcircuit and 17.83 / 21.62 ms for the wider graph.
 This measures neural computation, not total application memory, browser frame
-rate or mobile performance. The wider profile is now the default at the owner’s request; the lightweight subcircuit remains selectable. This choice is not evidence of better performance.
+rate or mobile performance. Those filtered profiles remain research controls; current play requires the complete graph described above.
 
 Saves are isolated as `fly-play-flight-v2-escape` and
 `fly-play-flight-v2-whole`. The old `fly-play-save-v1` is left untouched.

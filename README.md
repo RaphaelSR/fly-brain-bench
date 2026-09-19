@@ -389,7 +389,7 @@ single synapse, and together they carry only 14% of the total synaptic weight.**
 | 10 | 1,066,822 | 43.4% | 124,445 | 2.9 MB |
 | 20 | 366,864 | 26.5% | 89,793 | 1.1 MB |
 
-This build uses **≥ 5 synapses**. That is not a free lunch, so it was checked rather
+The original bench/laboratory build uses **≥ 5 synapses**. Current playable mode uses the complete source file (see below). That is not a free lunch, so it was checked rather
 than assumed: the same LIF model was run on the sugar benchmark at each threshold
 and compared against the unpruned model.
 
@@ -575,24 +575,41 @@ aim miss 0, plus action costs. Neural anatomy stays fixed. These are game
 controllers, not complete biological intelligence, and engineered inputs prevent
 attributing behavior to the connectome alone.
 
-The default **Wider brain · experimental** (also `?brain=whole`) runs the existing
-138,639-neuron, 2,700,513-pair package with the 6,203-neuron escape subcircuit available as the lightweight `?brain=escape` option.
-Its 49 feature populations use full-package indices in exactly the same feature
-order. The large package is thresholded at ≥5 synapses per pair, not an unfiltered
-brain; the subcircuit uses ≥8. Fourteen cells without annotated positions are
-hidden in the large brain inspector, not assigned invented coordinates.
+#### Required source-complete connectome
 
-The wider profile currently transfers the small-circuit motor heads; it has not
-received independent offline whole-brain training. It was worse, not better, in
-the held-out transfer test: **39/120 hits**, versus **33/120** for the subcircuit.
-The padded old motor policy also had **33/120** hits in the new body. There were
-77 actual initial threats (rejection sampling did not find every requested threat),
-with 44 avoided by the new subcircuit controller and 39 by the wider profile.
-These are exploratory results, not statistical or biological validation. Navigation
-reduced goal distance during the short probes but only reached 2 goals in 40
-3.6-second probes; robust long-horizon planning remains unfinished.
+Play now requires **138,639 neurons, 15,091,983 directed pairs and 54,492,922
+aggregated synapses** from the local v783 source file. It retains every pair,
+including single-synapse connections, and preserves counts up to 2,405 rather
+than clipping them at 127. Complete means all entries of this source file,
+not complete biology.
 
-Saves use `fly-play-flight-v2-escape` and `fly-play-flight-v2-whole`.
+The worker validates metadata and SHA-256 payload hashes. Neither a URL parameter
+nor a loading failure can select a smaller graph. Failure is reported instead.
+The inspector queries the same graph in that worker, avoiding a second complete
+copy. It draws at most 160 selected edges and highlights up to 1,400 cells above
+the activity threshold: these are display limits, not neural-network pruning.
+Not every neuron should fire at once. Fourteen missing positions remain hidden.
+
+Learning starts enabled and persists in the browser. Existing wider-profile
+motor weights and scores remain available; prior subcircuit saves are untouched.
+Learning updates two motor readouts, **not anatomical synapses**. The 49 neural
+features, 27 engineered inputs, artificial goals and synthetic looming stimulus
+remain approximations. Electrical state resets at release. A larger graph is
+not a claim of complete intelligence or guaranteed improvement.
+
+Build with `.venv/bin/python tools/build_complete_brain.py`; cached arrays are
+checked against every source row before packing. See
+[provenance](web/play/brain-data/README.md).
+Local Node 20 ARM64 median / p95 observation cost was **45.97 / 63.88 ms**.
+The graph arrays alone occupy **121,290,424 bytes**; compressed connectivity is
+**30,663,497 bytes**. These are not total memory or mobile-frame-rate measurements.
+
+There is not yet a new held-out behavioral evaluation for this unpruned graph.
+The pretrained report is **historical evidence for filtered graphs**,
+not evidence of performance in the current configuration.
+
+The game uses `fly-play-flight-v2-whole`; the previous
+`fly-play-flight-v2-escape` save remains untouched but is not selected for play.
 The old `fly-play-save-v1` is untouched. Explicit legacy transfer copies the
 old motor weights into the larger input/action space, resets incompatible
 optimizer state and score, and uses the current pretrained navigation head.
@@ -610,8 +627,8 @@ in `tools/fixtures/patio-v2.json` and reproduce at commit `ba0e4ba`.
 
 Reproduce the neural CPU benchmark:
 `node --experimental-default-type=module tools/benchmark-brain.mjs`.
-Measured local medians were 4.67 ms (subcircuit) and 17.83 ms (wider package) for a
-180-biological-ms observation. This is not a mobile frame-rate promise.
+The current benchmark includes the subcircuit, historical threshold-5 package
+and source-complete graph for a 180-biological-ms observation. This is not a mobile frame-rate promise.
 See [the implementation and research notes](docs/flight-and-whole-brain.md).
 
 ### Data and model

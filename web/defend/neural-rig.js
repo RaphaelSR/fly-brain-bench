@@ -1,4 +1,4 @@
-import { Engine } from '../js/lif-core.js';
+import { Engine } from '../js/lif-core.js?v=complete1';
 import { GLANCE, featureSize, evokedInto } from './policy.js';
 
 export function mulberry(a) {
