@@ -1,6 +1,6 @@
 import { loadRig } from './rig.mjs';
 const rows = [];
-for (const brain of ['escape', 'whole']) {
+for (const brain of ['escape', 'whole', 'complete']) {
   const start = performance.now(), rig = loadRig({ brain, seed: 4041 });
   const loadMs = performance.now() - start;
   for (let i = 0; i < 5; i++) rig.glance(i % 2 ? -0.8 : 0.8, 0.8);
@@ -17,4 +17,4 @@ for (const brain of ['escape', 'whole']) {
 }
 console.log(JSON.stringify({ runtime: process.version, platform: process.platform, architecture: process.arch,
   dtBiologicalMs: 0.5, neuralWindowBiologicalMs: 180, samples: 40, warmup: 5, rows,
-  limitation: 'Local Node CPU test, not mobile/browser FPS. The large package filters weak connected pairs; it is not all synapses or complete biology. Latency says nothing about intelligence.' }));
+  limitation: 'Local Node CPU test, not mobile/browser FPS or total application memory. Complete preserves source pairs/counts; whole is the historical threshold-5 package. Neither is complete biology. Latency says nothing about intelligence.' }));

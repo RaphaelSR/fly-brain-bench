@@ -31,7 +31,7 @@ export class Engine {
     this.rfc = new Int16Array(N); this.inActive = new Uint8Array(N);
     this.isStim = new Uint8Array(N); this.spikeCount = new Int32Array(N);
     this.active = new Int32Array(N);
-    this.outIdx = new Int32Array(1 << 16);
+    this.outIdx = new Int32Array(N);
     this.ring = [];
     for (let i = 0; i < this.DLY_STEPS; i++) this.ring.push({ buf: new Int32Array(1024), n: 0 });
     this.stimList = new Int32Array(0);

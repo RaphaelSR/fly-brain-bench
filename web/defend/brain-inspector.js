@@ -2,8 +2,9 @@ import { t } from '../js/i18n.js';
 import { neighborhood, populations } from './connectivity.js';
 
 export class BrainInspector {
-  constructor(view, meta, labels, conn) {
+  constructor(view, meta, labels, conn, query = null) {
     this.view = view; this.meta = meta; this.labels = labels; this.conn = conn;
+    this.query = query; this.revision = 0;
     this.groups = populations(meta, labels, view.pos);
     this.focus = this.groups.filter(g => g.type === 'DNp01').flatMap(g => g.ids);
     this.name = 'DNp01'; this.picked = -1; this.shuffled = false;
@@ -67,7 +68,16 @@ export class BrainInspector {
 
   refresh() {
     // Never put empirical edges behind the shuffled-control activity.
-    this.graph = this.shuffled ? { total: 0, edges: [] } : neighborhood(this.conn, this.focus);
+    const revision = ++this.revision;
+    this.queryPending = Boolean(this.query && !this.shuffled);
+    this.applyGraph(this.shuffled || this.query ? { total: 0, edges: [] } : neighborhood(this.conn, this.focus));
+    if (this.query && !this.shuffled) this.query([...this.focus]).then(graph => {
+      if (revision === this.revision) { this.queryPending = false; this.applyGraph(graph); }
+    }).catch(() => { if (revision === this.revision) { this.queryPending = false; this.applyGraph({ total: 0, edges: [] }); } });
+  }
+
+  applyGraph(graph) {
+    this.graph = graph;
     const visible = new Set(this.focus);
     for (const edge of this.graph.edges) { visible.add(edge.pre); visible.add(edge.post); }
     for (let i = 0; i < this.view.N; i++) this.view.dim[i] = !this.focus.length || visible.has(i) ? 1 : 0.7;
@@ -78,7 +88,7 @@ export class BrainInspector {
   relabel() {
     document.querySelector('#brainExpand').textContent = t(this.expanded ? 'brain.collapse' : 'brain.expand');
     document.querySelector('#brainCount').textContent = t('brain.count', { n: this.meta.n_neurons.toLocaleString(), e: this.meta.n_edges.toLocaleString() });
-    document.querySelector('#brainEdgeCount').textContent = this.shuffled ? t('brain.shuffled') : !this.focus.length ? t('brain.overview') : t('brain.edges', { n: this.graph.edges.length, total: this.graph.total, name: this.name });
+    document.querySelector('#brainEdgeCount').textContent = this.queryPending ? '…' : this.shuffled ? t('brain.shuffled') : !this.focus.length ? t('brain.overview') : t('brain.edges', { n: this.graph.edges.length, total: this.graph.total, name: this.name });
     const legend = document.querySelector('#brainNT');
     legend.replaceChildren();
     this.meta.dicts.top_nt.forEach((name, i) => {

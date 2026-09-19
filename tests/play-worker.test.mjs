@@ -15,8 +15,14 @@ test('actual play worker advances live, locks throws, saves one outcome and rest
       return messages.at(-1);
     };
     const artifact = JSON.parse(readFileSync(new URL('../web/play/pretrained.json', import.meta.url)));
-    const saved = { protocol: PROTOCOL, brain: 'escape', policy: artifact.policy, navigationPolicy: artifact.navigationPolicy, stats: { throws: 0, hits: 0, dodges: 0, misses: 0 } };
+    const saved = { protocol: PROTOCOL, brain: 'whole', policy: artifact.policy, navigationPolicy: artifact.navigationPolicy, stats: { throws: 0, hits: 0, dodges: 0, misses: 0 } };
     const initial = await request('init', { seed: 77, saved }); validateSave(initial.save);
+    assert.equal(initial.state.neural.neurons, 138639); assert.equal(initial.state.neural.pairs, 15091983);
+    assert.equal(initial.state.neural.threshold, 1); assert.equal(initial.state.neural.learning, true);
+    assert.ok((await request('init', { seed: 77, brain: 'escape' })).error);
+    assert.ok((await request('inspect', { focus: [-1] })).error);
+    const inspected = await request('inspect', { focus: [0] });
+    assert.ok(inspected.graph.total > 0); assert.ok(inspected.graph.edges.every(e => e.pre === 0 || e.post === 0));
     const moved = await request('step', { ticks: 12 }); assert.notDeepEqual(moved.state.frame, initial.state.frame);
     const nudged = await request('nudge', { object: 'fern', dx: 1, dz: 0 });
     assert.equal(nudged.save, null); assert.deepEqual(nudged.state.stats, initial.state.stats);
@@ -51,7 +57,7 @@ test('actual play worker advances live, locks throws, saves one outcome and rest
     const wider = await request('init', { seed: 77, brain: 'whole', saved: { ...saved, brain: 'whole' } });
     assert.equal(wider.error, undefined); validateSave(wider.save);
     assert.equal(wider.state.brain, 'whole');
-    assert.ok((await request('restore', { seed: 77, saved })).error);
+    assert.ok((await request('restore', { seed: 77, saved: { ...saved, brain: 'escape' } })).error);
     const widerStep = await request('step', { ticks: 12 });
     assert.equal(widerStep.error, undefined);
     assert.equal(widerStep.state.brain, 'whole');
