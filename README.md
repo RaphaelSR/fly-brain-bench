@@ -124,7 +124,22 @@ The default is an open 3D courtyard. A procedural hand throws a flip-flop at the
 fly's position at release; the projectile does not home in on her. She can lean,
 jump laterally, land elsewhere, and face another throw from that location.
 Contact ends the current life. The next attempt respawns her while keeping the
-session's policy. Reloading the page or choosing **New session** clears that policy.
+session's policy. Learning now **autosaves in this browser** between throws, including
+full-precision weights, feature normalization, pending gradients, RNG state and
+statistics. Reloading continues that learning. It does not resume mid-throw; the
+LIF transient resets between expanded-arena throws, including during uninterrupted
+sessions, so restored checkpoints reproduce the next experiment deterministically.
+
+**Learning and backups** offers JSON export/import, a genuinely pretrained policy,
+and separate **Clear statistics** and **Erase learning** actions. Destructive choices
+ask for confirmation. Saves are versioned and validated before restoration. A
+revision check (under Web Locks where available) rejects stale-tab writes. Failed
+writes are reported, never labeled saved. Backups matter: local browser storage is
+not cloud sync, can be cleared, and cannot recover training lost before this release.
+
+The HUD reports escapes, deaths, their ratio (not literal kills by the fly), total
+survival, current-life seconds and best life; the header retains last-50 survival
+and streak. Replaying a trajectory does not count or train again.
 
 This mode computes new experiments locally in a module worker. It uses the same
 6,203-cell escape subcircuit, LIF engine, neural measurement rig, and REINFORCE
@@ -132,15 +147,44 @@ policy as the offline tools. `neural-rig.js` is shared with `tools/rig.mjs`.
 An episode is calculated first and then presented with its actual neural snapshots,
 actions, and physical trajectory; this is not an old recording, nor a wall-clock
 live neural stream. **Train 50 throws** calculates 50 additional training attempts
-without presenting every frame. Disable **Learn from attempts** to evaluate the
+and presents the last one. Disable **Learn from attempts** to evaluate the
 current policy without updating its weights or feature normalisation.
 
 The connectome is fixed. Only the action readout learns. Jump propulsion, flight,
 landing and cinematic camera control are engineered. The body is not NeuroMechFly:
 contact uses a thorax sphere against an oriented sole/strap box at a fixed 120 Hz;
 the subsequent body response uses gravity, impulse, angular damping, floor
-restitution and friction at 240 Hz. Plants are scenery, not simulated obstacles.
+restitution and friction at 240 Hz. The expanded 32×32 arena adds forward movement,
+left/right heading changes, in-air steering and descent to the original four motor
+actions. Eight actions use the same 49 neural features; there is no ground-truth
+collision answer supplied to the policy. Engineered looming input is now calculated
+from current projectile bearing and distance, not a prerecorded side/time sequence.
+Pots and two stone perches share simplified cylindrical geometry with collision
+code; leaves remain decorative. One takeoff is available per throw. Safe positions
+and perch height carry into the next throw. Free time between throws (2.7, 6 or 12 s)
+changes physical duration, separately from playback duration. This is a discrete
+throw-based arena, not continuous neural/whole-brain biomechanics.
+
+**Intense impacts** enables presentation-only compression, splayed wings, ballistic
+green droplets and ground stains, triggered only by computed contact. It can be
+disabled. Green fluid is deliberately stylized, not a claim about fly hemolymph.
 There is no biological claim about a real fly surviving a sandal strike.
+
+**Predictions** is a separate, local game with 1,000 free starting points, stakes
+from 10 to 100, and a 2× gross return for correctly predicting escape/hit. Outcome
+probabilities are not advertised as equal or calibrated. There are no purchases,
+transfers, withdrawals, money, or public rankings. A bet is persisted before the
+worker computes a frozen copy of the laboratory policy. Laboratory training and
+statistics are untouched. Pending rounds retain seed, policy and settings across
+reloads; settlement is idempotent and replays cannot award points again. Local
+storage is user-editable, so this is not an anti-cheat or real-money system.
+
+`tools/train-arena.mjs` reproduces `web/defend/data/pretrained-arena.json`: 800
+training throws, then frozen evaluation on five held-out seeds across all nine
+flight/free-time combinations (180 throws). The shipped model escaped 153/180
+(85%); by flight time, 70%, 85%, and 100% in this small sample. This is neither a
+survival guarantee nor biological validation. Its report includes the zero-weight
+greedy baseline, which selects action 0 on ties, not a random-action baseline.
 
 **Scene length** (4–20 seconds at 1×) and **Speed** (0.25–4×) retime presentation
 without changing decisions or collision outcomes. **Throw flight** (1.2, 1.8 or
@@ -149,7 +193,8 @@ hold the final state. Replaying an attempt does not train again. Cinematic frami
 is optional; dragging gives the camera back to the user. Reduced motion starts
 paused with cinematic camera tracking disabled.
 
-Development smoke test, 600 training attempts per seed, default 1.8 s throws:
+Historical four-action arena smoke test (not the expanded protocol), 600 training
+attempts per seed, default 1.8 s throws:
 
 | seed | survived, first 50 | survived, last 50 |
 |---|---:|---:|

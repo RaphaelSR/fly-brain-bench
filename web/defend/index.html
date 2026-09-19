@@ -93,6 +93,44 @@
   </section>
 
   <aside class="rail">
+    <section class="card progress-card" data-live-only>
+      <h2 data-ac="title">Your fly</h2>
+      <div class="survival-stats">
+        <div><b id="totalEscapes">0</b><span data-ac="escapes"></span></div>
+        <div><b id="totalDeaths">0</b><span data-ac="deaths"></span></div>
+        <div><b id="kdRatio">—</b><span data-ac="ratio"></span></div>
+        <div><b id="totalRate">—</b><span data-ac="overall"></span></div>
+        <div><b id="lifeSeconds">0 s</b><span data-ac="life"></span></div>
+        <div><b id="bestLife">0 s</b><span data-ac="best"></span></div>
+      </div>
+      <p id="saveStatus" class="cap" role="status"></p>
+      <label class="profile-field"><span data-ac="mode"></span><select id="sessionMode"><option value="lab" data-ac="lab"></option><option value="game" data-ac="game"></option></select></label>
+      <div id="gameControls" hidden>
+        <strong id="pointsBalance" class="points-balance"></strong>
+        <label class="profile-field"><span data-ac="prediction"></span><select id="prediction"><option value="escape" data-ac="escape"></option><option value="hit" data-ac="hit"></option></select></label>
+        <label class="profile-field"><span data-ac="stake"></span><input id="stake" type="number" min="10" max="100" step="10" value="50"></label>
+        <button id="btnBet" class="ghost" data-ac="bet"></button>
+        <p id="gameResult" role="status" class="cap"></p><p id="gameHistory" class="cap mono"></p>
+        <details><summary data-ac="game"></summary><p class="cap" data-ac="gameNote"></p><button id="btnPoints" class="ghost" data-ac="resetPoints"></button></details>
+      </div>
+      <p id="gameStatsNote" class="cap" data-ac="gameStats" hidden></p>
+      <details class="profile-details"><summary data-ac="manage"></summary>
+        <p class="cap" data-ac="note"></p>
+        <div class="profile-buttons">
+          <button id="btnPretrained" class="ghost" data-ac="pretrained"></button>
+          <button id="btnClearStats" class="ghost" data-ac="clear"></button>
+          <button id="btnExport" class="ghost" data-ac="export"></button>
+          <label class="profile-field"><span data-ac="import"></span><input id="importFile" type="file" accept=".json,application/json"></label>
+        </div>
+        <p class="cap" data-ac="profileNote"></p>
+        <a href="data/pretrained-arena.json" target="_blank" rel="noopener">Training & evaluation · JSON ↗</a>
+      </details>
+      <details class="profile-details"><summary data-ac="free"></summary>
+        <label class="profile-field"><span data-ac="roam"></span><select id="roamTime"><option value="2.7">2.7 s</option><option value="6" selected>6 s</option><option value="12">12 s</option></select></label>
+        <label class="auto-next"><input id="intense" type="checkbox" checked><span data-ac="intense"></span></label>
+        <p class="cap" data-ac="effects"></p>
+      </details>
+    </section>
     <section class="card brain-card" id="brainCard">
       <h2><span data-i18n="brain.title">The escape circuit</span><span id="mActive" class="mono dim"></span></h2>
       <p id="brainCount" class="brain-count mono"></p>

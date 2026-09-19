@@ -1,4 +1,5 @@
 import * as THREE from '../vendor/three/three.module.min.js';
+import { POTS, PERCHES, ARENA_LIMIT } from './world-layout.js';
 
 const material = (color, roughness = 0.8) => new THREE.MeshStandardMaterial({ color, roughness });
 const mesh = (parent, geometry, mat, x, y, z) => {
@@ -25,7 +26,7 @@ export function createCourtyard(view) {
   }
   tiles.receiveShadow = true; desk.add(tiles);
   const leafMat = material(0x415f40);
-  for (const [x, z, scale] of [[-8, -7, 1], [8, -8, 1.3], [-11, 6, 0.9]]) {
+  for (const [x, z, scale] of POTS) {
     const pot = new THREE.Group(); pot.position.set(x, 0, z); pot.scale.setScalar(scale); desk.add(pot);
     mesh(pot, new THREE.CylinderGeometry(1, 0.73, 1.45, 24), material(0x9c6650), 0, 0.73, 0);
     mesh(pot, new THREE.CylinderGeometry(0.88, 0.88, 0.08, 24), material(0x3a3428), 0, 1.46, 0);
@@ -34,6 +35,13 @@ export function createCourtyard(view) {
       const leaf = mesh(pot, new THREE.SphereGeometry(1, 12, 8), leafMat, Math.sin(a) * 0.6, 2.1 + (i % 3) * 0.3, Math.cos(a) * 0.6);
       leaf.scale.set(0.3, 1.1, 0.16); leaf.rotation.z = Math.sin(a) * 0.8; leaf.rotation.y = a;
     }
+  }
+  for (const p of PERCHES) {
+    mesh(desk, new THREE.CylinderGeometry(p.radius, p.radius, p.height, 32), material(0xb4a38b), p.x, p.height / 2, p.z);
+  }
+  for (const sign of [-1, 1]) {
+    mesh(desk, new THREE.BoxGeometry(ARENA_LIMIT * 2 + 1, 0.4, 0.35), material(0x8d8270), 0, 0.2, sign * (ARENA_LIMIT + 0.4));
+    mesh(desk, new THREE.BoxGeometry(0.35, 0.4, ARENA_LIMIT * 2 + 1), material(0x8d8270), sign * (ARENA_LIMIT + 0.4), 0.2, 0);
   }
   return desk;
 }

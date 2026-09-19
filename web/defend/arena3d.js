@@ -2,6 +2,7 @@ import * as THREE from '../vendor/three/three.module.min.js';
 import { FlyView } from '../js/fly.js';
 import { ImpactBody } from './impact.js';
 import { createCourtyard, createObjects, createThrower } from './courtyard.js';
+import { Splat } from './splat.js';
 
 // The replay owns timing and decisions; the renderer only interpolates the pose.
 export function escapePose(state) {
@@ -25,7 +26,9 @@ export class Arena3D {
     createCourtyard(this.view);
     this.carrier = new THREE.Group();
     this.carrier.add(this.view.rig.root);
-    scene.add(this.carrier);
+    this.compression = new THREE.Group(); this.compression.add(this.carrier); scene.add(this.compression);
+    this.splat = new Splat(scene);
+    this.intense = true;
     this.threat = new THREE.Group();
     this.objects = createObjects();
     this.threat.add(...Object.values(this.objects));
@@ -55,6 +58,7 @@ export class Arena3D {
   reset() {
     this.time = 0; this.flare = 0; this.hit = 0;
     this.physics = null;
+    this.compression.scale.setScalar(1); this.compression.position.set(0, 0, 0); this.splat.reset();
     this.carrier.position.set(0, 0, 0); this.carrier.rotation.set(0, 0, 0);
     this.view.rig.reset();
     this.hand.visible = false;
@@ -65,15 +69,23 @@ export class Arena3D {
     const rig = this.view.rig;
     this.halo.visible = false; this.approach.visible = false; this.pulse.visible = false;
     this.setObject('slipper');
+    const squash = this.splat.update(frame, episode, this.intense);
+    this.compression.scale.setScalar(1); this.compression.position.set(0, 0, 0);
     if (frame.hit) {
-      rig.pose({ air: frame.tuck * 0.7, wing: frame.tuck * 0.2 }, dt);
+      rig.pose({ air: 0, wing: 0 }, 0);
+      for (const wing of rig.wings) wing.pivot.rotation.z = wing.side * 1.25;
       rig.root.position.y = -0.52;
       this.carrier.position.set(frame.x, 0.52 + frame.height, frame.z);
       this.carrier.rotation.set(frame.pitch, frame.heading, frame.roll);
+      if (squash) {
+        this.compression.position.set(frame.x, Math.max(0.08, 0.52 + frame.height - 0.22 * squash), frame.z);
+        this.compression.scale.set(1 + 0.55 * squash, 1 - 0.84 * squash, 1 + 0.35 * squash);
+        this.carrier.position.set(0, 0, 0);
+      }
     } else {
       this.carrier.position.set(0, 0, 0); this.carrier.rotation.set(0, 0, 0);
       rig.pose({ x: frame.x, z: frame.z, heading: frame.heading, height: frame.height,
-        air: frame.air, wing: frame.air, lean: frame.lean }, dt);
+        air: frame.air, wing: frame.air, speed: frame.speed || 0, lean: frame.lean }, dt);
     }
     const p = frame.projectile;
     this.threat.position.set(p.x, p.y, p.z); this.threat.rotation.set(0, p.yaw, 0);
