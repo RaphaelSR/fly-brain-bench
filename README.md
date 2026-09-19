@@ -94,7 +94,50 @@ labels are on, so a link opens on exactly what you were looking at:
 `?stim=loom&lang=pt&regions=1`, or `?type=LPLC2` for a cell type you picked
 yourself.
 
-## Escape Reflex — the scenario at `/defend`
+## Survival arena and recorded benchmark — `/defend`
+
+The default is an open 3D courtyard. A procedural hand throws a flip-flop at the
+fly's position at release; the projectile does not home in on her. She can lean,
+jump laterally, land elsewhere, and face another throw from that location.
+Contact ends the current life. The next attempt respawns her while keeping the
+session's policy. Reloading the page or choosing **New session** clears that policy.
+
+This mode computes new experiments locally in a module worker. It uses the same
+6,203-cell escape subcircuit, LIF engine, neural measurement rig, and REINFORCE
+policy as the offline tools. `neural-rig.js` is shared with `tools/rig.mjs`.
+An episode is calculated first and then presented with its actual neural snapshots,
+actions, and physical trajectory; this is not an old recording, nor a wall-clock
+live neural stream. **Train 50 throws** calculates 50 additional training attempts
+without presenting every frame. Disable **Learn from attempts** to evaluate the
+current policy without updating its weights or feature normalisation.
+
+The connectome is fixed. Only the action readout learns. Jump propulsion, flight,
+landing and cinematic camera control are engineered. The body is not NeuroMechFly:
+contact uses a thorax sphere against an oriented sole/strap box at a fixed 120 Hz;
+the subsequent body response uses gravity, impulse, angular damping, floor
+restitution and friction at 240 Hz. Plants are scenery, not simulated obstacles.
+There is no biological claim about a real fly surviving a sandal strike.
+
+**Scene length** (4–20 seconds at 1×) and **Speed** (0.25–4×) retime presentation
+without changing decisions or collision outcomes. **Throw flight** (1.2, 1.8 or
+2.4 seconds) changes the next physical experiment. Turn off **Auto advance** to
+hold the final state. Replaying an attempt does not train again. Cinematic framing
+is optional; dragging gives the camera back to the user. Reduced motion starts
+paused with cinematic camera tracking disabled.
+
+Development smoke test, 600 training attempts per seed, default 1.8 s throws:
+
+| seed | survived, first 50 | survived, last 50 |
+|---|---:|---:|
+| 11 | 21/50 | 46/50 |
+| 31 | 17/50 | 41/50 |
+| 20260919 | 17/50 | 49/50 |
+
+These are exploratory training returns, not held-out evaluation or evidence that
+connectome anatomy is necessary. The new geometric task can reward early jumps
+and does **not** inherit the scientific controls of the recorded benchmark below.
+
+### Recorded escape benchmark
 
 The bench lets you poke her and watch what happens. The scenario asks a harder
 question: **can anything be learned on top of this wiring, and does the wiring
@@ -107,8 +150,7 @@ into the thing is still hit. A linear readout over 48 descending populations is
 trained by REINFORCE; her brain does not change, because a connectome has no
 plasticity.
 
-The page does not train — six hundred episodes of a spiking network is not
-something you watch in a tab. It plays back a recording made by
+The **Recorded benchmark** mode plays back a recording made by
 `tools/train.mjs`, which is the same engine and the same policy with nothing else
 on the thread, and takes about twenty-five seconds. Every twenty-five episodes the
 recorder freezes the policy and shows her **the same twelve threats**, so any two

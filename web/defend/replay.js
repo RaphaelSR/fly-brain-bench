@@ -50,7 +50,7 @@ const mean = a => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
    positions it actually held, so the approach reads as motion rather than as the
    seven discrete steps it is underneath. */
 export const BEAT = 0.68;          // seconds per glance at 1x
-export const VERDICT = 1.15;       // seconds to sit on the outcome
+export const VERDICT = 2.6;        // contact, landing and recovery in presentation time
 
 export class Player {
   constructor(rec) {
@@ -63,6 +63,7 @@ export class Player {
     this.k = -1;                   // glance index
     this.t = 0;
     this.done = false;
+    this.finished = false;
     this.body = { lean: 0, airborne: 0, leapUsed: false };
     this.leapAge = 0;
     this.leapLean = 0;
@@ -76,21 +77,48 @@ export class Player {
 
   /* advances the clock; calls back on the frames where something happens */
   update(dt, { onGlance, onAct, onEnd } = {}) {
-    if (!(dt > 0)) return;
+    if (!(dt > 0) || !Number.isFinite(dt) || this.finished) return;
     const run = this.run;
     if (!run) return;
-    this.t += dt;
     if (this.done) {
-      if (this.t >= VERDICT) { this.t = 0; onEnd?.(run); }
+      this.t += dt;
+      if (this.t >= VERDICT) { this.t = VERDICT; this.finished = true; onEnd?.(run); }
       return;
     }
-    const want = Math.floor(this.t / BEAT);
-    if (want > this.k) {
-      this.k = want;
+    const target = this.t + dt;
+    const advanceBody = delta => {
+      const decay = this.rec.raw.rules?.leapDecay ?? 0.25;
+      this.body.airborne = Math.max(0, this.body.airborne - decay * delta / BEAT);
+      if (this.body.leapUsed) this.leapAge += delta;
+    };
+    // Visit every recorded boundary, even if fast playback crosses several in one frame.
+    while (true) {
+      const next = this._pendingAct ? (this.k + 0.46) * BEAT : (this.k + 1) * BEAT;
+      if (next > target + 1e-10) break;
+      advanceBody(Math.max(0, next - this.t));
+      this.t = next;
+      if (this._pendingAct) {
+        const s = this._pendingAct;
+        this._pendingAct = null;
+        const name = this.rec.actions[s.a];
+        const wasUsed = this.body.leapUsed;
+        this.body.lean = s.lean;
+        this.body.leapUsed = !!s.used;
+        if (name === 'leap' && !wasUsed) {
+          this.body.airborne = 1;
+          this.leapAge = 0;
+          this.leapLean = s.lean;
+        }
+        onAct?.(name, s);
+        this.step = this.k + 1;
+        continue;
+      }
+      this.k++;
       if (this.k >= this.rec.glances) {
-        this.done = true; this.t = 0;
+        this.done = true; this.t = Math.min(VERDICT, Math.max(0, target - next));
         this.step = this.rec.glances;
         onEnd?.(run, true);
+        if (this.t >= VERDICT) { this.finished = true; onEnd?.(run); }
         return;
       }
       const s = run.steps[this.k];
@@ -101,27 +129,8 @@ export class Player {
       onGlance?.(this.k, s);
       this._pendingAct = s;
     }
-    // she moves partway through the beat, after she has looked
-    if (this._pendingAct && this.t - this.k * BEAT > BEAT * 0.46) {
-      const s = this._pendingAct;
-      this._pendingAct = null;
-      const name = this.rec.actions[s.a];
-      const wasUsed = this.body.leapUsed;
-      this.body.lean = s.lean;
-      this.body.leapUsed = !!s.used;
-      if (name === 'leap' && !wasUsed) {
-        this.body.airborne = 1;
-        this.leapAge = 0;
-        this.leapLean = s.lean;
-        onAct?.(name, s);
-      }
-      else onAct?.(name, s);
-      this.step = this.k + 1;
-    }
-    // airborne decays across the remaining beats exactly as it did in training
-    const decay = this.rec.raw.rules?.leapDecay ?? 0.25;
-    this.body.airborne = Math.max(0, this.body.airborne - decay * (dt / BEAT));
-    if (this.body.leapUsed) this.leapAge += dt;
+    advanceBody(Math.max(0, target - this.t));
+    this.t = target;
   }
 
   get anticipation() {

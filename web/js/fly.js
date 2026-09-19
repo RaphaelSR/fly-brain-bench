@@ -19,7 +19,7 @@ export class FlyView {
     this.focus = new THREE.Vector3(0, 0.35, 0);
     this.target = this.focus.clone();
     this.yaw = 0.65; this.pitch = 0.48;
-    this.dist = arena ? 6.7 : 4.5;
+    this.dist = arena ? 8.4 : 4.5;
     this.userMoved = false;
     this.rig = new FlyRig();
     this.scene.add(this.rig.root);
@@ -70,7 +70,7 @@ export class FlyView {
 
   resetCamera() {
     this.yaw = 0.65; this.pitch = 0.48;
-    this.dist = this.arena ? 6.7 : 4.5;
+    this.dist = this.arena ? 8.4 : 4.5;
     this.userMoved = false;
   }
 
@@ -89,6 +89,12 @@ export class FlyView {
       this.camera.updateProjectionMatrix();
     }
     this.focus.lerp(this.target, 1 - Math.exp(-dt * 6));
+    if (this.cinematic && !this.userMoved) {
+      const f = 1 - Math.exp(-dt * 2.5);
+      this.dist += (this.cinematic.distance - this.dist) * f;
+      this.pitch += (this.cinematic.pitch - this.pitch) * f;
+      this.yaw += (this.cinematic.yaw - this.yaw) * f;
+    }
     const distance = this.dist * Math.max(1, (this.arena ? 1.25 : 0.95) / this.camera.aspect);
     const horizontal = Math.cos(this.pitch) * distance;
     this.camera.position.set(this.focus.x + Math.sin(this.yaw) * horizontal,
