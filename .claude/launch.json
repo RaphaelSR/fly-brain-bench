@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "fly-brain-bench",
+      "name": "bench",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8123", "--directory", "web"],
-      "port": 8123
+      "runtimeArgs": ["-m", "http.server", "8400", "--directory", "web"],
+      "port": 8400
     }
   ]
 }

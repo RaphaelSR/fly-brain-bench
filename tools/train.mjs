@@ -52,8 +52,12 @@ for (let s = -1; s <= 1; s += 2) {
   }
 }
 const PROBE_EVERY = Number(opt('--probe-every', 25));
-const SHOWCASE = 8;              // which probe angle gets her neurons recorded
-const SNAP_EVERY = 3;            // ...and at every third probe, to keep the file small
+/* Which approaches get her neurons written down. Not all twelve: the snapshots
+   are most of the file, and four — two from each side, near and far — carry the
+   whole story while keeping the recording under a couple of hundred kilobytes.
+   The page plays back only these, so the brain panel is never dark. */
+const SHOWCASE = [1, 4, 7, 10];
+const SNAP_EVERY = Number(opt('--snap-every', 1));   // how often her neurons get captured
 
 const rig = loadRig({ shuffled: SHUFFLED, seed: SEED });
 const { rng } = rig;
@@ -81,7 +85,7 @@ function probe(epIndex, withSnaps) {
     const body = blankBody();
     const steps = [];
     const snaps = [];
-    const wantSnap = withSnaps && ai === SHOWCASE;
+    const wantSnap = withSnaps && SHOWCASE.includes(ai);
     for (let k = 0; k < GLANCES_PER_APPROACH; k++) {
       const g = rig.glance(threat.sideOf(0), threat.loom);
       const p = pol.probs(g.x, 1);
@@ -172,6 +176,8 @@ if (REPLAY) {
     neurons: rig.N, glances: GLANCES_PER_APPROACH,
     actions: ACTIONS, features: rig.featNames,
     probeAngles: PROBE_ANGLES, probeEvery: PROBE_EVERY, showcase: SHOWCASE,
+    // the driven populations, so the page can light the eye that is being fed
+    inputs: { left: Array.from(rig.loomL), right: Array.from(rig.loomR) },
     rules: { airborneAt: RULES.airborneAt, leapDecay: RULES.leapDecay },
     train: log, probes,
     policy: pol.serialise(),

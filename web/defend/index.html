@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Escape Reflex</title>
-<meta name="description" content="Something is coming. Watch a real fruit fly connectome learn to get out of the way.">
+<meta name="description" content="Something is coming. Watch a real fruit fly connectome learn to get out of the way — and watch a rewired one fail to.">
 <meta name="theme-color" content="#0B1114">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,10 +18,10 @@
   <div class="boot-card">
     <p class="eyebrow">Drosophila melanogaster &middot; FlyWire v783</p>
     <h1>Something is coming.</h1>
-    <p class="sub">She does not know what to do about it yet.</p>
+    <p class="sub">At first she has no idea what to do about it.</p>
     <div class="track"><div id="loadBar"></div></div>
     <p id="loadLabel" class="mono"></p>
-    <p id="loadDetail" class="fine">Her escape circuit is the real one — 8 MB, cached after the first visit.</p>
+    <p id="loadDetail" class="fine">A recorded run: six hundred episodes on her real escape circuit.</p>
   </div>
 </div>
 
@@ -34,33 +34,58 @@
     </div>
   </div>
   <div class="top-stats mono">
-    <span><b id="mEp">0</b> <i>episodes</i></span>
-    <span><b id="mSurv">0%</b> <i>survived</i></span>
-    <span><b id="mGF">0</b> <i>Hz DNp01</i></span>
+    <span><b id="mEp">0</b> <i>episodes trained</i></span>
+    <span><b id="mScore">0%</b> <i>escaped</i></span>
+    <span><b id="mAim">0%</b> <i>leaned the right way</i></span>
   </div>
   <a class="ghost" href="../">&larr; Bench</a>
 </header>
 
 <main>
   <section class="stage">
-    <canvas id="arena"></canvas>
-    <p id="verdict" class="verdict"></p>
+    <div class="arenas" id="arenas">
+      <figure class="pane" id="paneA">
+        <canvas></canvas>
+        <figcaption>
+          <b class="mono" data-ep>episode 0</b>
+          <span data-verdict></span>
+        </figcaption>
+      </figure>
+      <figure class="pane" id="paneB" hidden>
+        <canvas></canvas>
+        <figcaption>
+          <b class="mono" data-ep>episode 0</b>
+          <span data-verdict></span>
+        </figcaption>
+      </figure>
+    </div>
+    <div class="stage-hud mono">
+      <span id="hudAngle"></span>
+      <span id="hudGlance"></span>
+      <span id="hudWiring"></span>
+    </div>
   </section>
 
   <aside class="rail">
     <section class="card">
       <h2>The arc<button class="info" data-info="arc">i</button></h2>
-      <div id="strip" class="strip"></div>
-      <p id="arcNote" class="cap">No episodes yet. Press Train.</p>
+      <canvas id="arcChart"></canvas>
+      <p id="arcNote" class="cap"></p>
     </section>
 
     <section class="card">
-      <h2>Her escape neuron<button class="info" data-info="gf">i</button></h2>
+      <h2>What she does next<button class="info" data-info="probs">i</button></h2>
+      <ul id="probs" class="probs"></ul>
+    </section>
+
+    <section class="card">
+      <h2>What reached her<button class="info" data-info="gf">i</button></h2>
       <div class="gauge"><i id="gfBar"></i></div>
       <p class="cap mono"><span id="gfVal">0</span> Hz &middot; DNp01</p>
       <div class="pair">
         <label>Left eye</label><span class="meter"><i id="loomL"></i></span>
         <label>Right eye</label><span class="meter"><i id="loomR"></i></span>
+        <label>Urgency</label><span class="meter"><i id="urg" class="warm"></i></span>
       </div>
     </section>
 
@@ -73,13 +98,18 @@
 </main>
 
 <footer class="transport">
-  <button id="btnTrain" class="primary">Train</button>
-  <button id="btnReset" class="ghost">Forget</button>
+  <button id="btnPlay" class="primary" aria-label="Play or pause">Pause</button>
+  <label class="scrub">
+    <input id="scrub" type="range" min="0" max="25" step="1" value="0" aria-label="Training checkpoint">
+    <span id="scrubOut" class="mono">episode 0</span>
+  </label>
+  <button id="btnFollow" class="ghost" aria-pressed="true">Walk the arc</button>
+  <button id="btnCompare" class="ghost" aria-pressed="false">Compare with episode 0</button>
+  <button id="btnWiring" class="ghost" aria-pressed="false">Shuffle her wiring</button>
   <label class="slider">Speed
-    <input id="speed" type="range" min="1" max="6" step="1" value="2">
+    <input id="speed" type="range" min="1" max="4" step="1" value="2">
     <span id="speedOut" class="mono">1&times;</span>
   </label>
-  <span id="dockStat" class="mono dim"></span>
 </footer>
 
 <div id="infoPop" role="dialog"><h4></h4><p></p></div>
