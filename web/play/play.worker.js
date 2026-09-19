@@ -1,5 +1,5 @@
 import { fetchGz, decodeLabels } from '../js/data.js';
-import { decodeCompleteBrain } from './complete-brain.js?v=complete1';
+import { decodeCompleteBrain, decodeLightBrain } from './complete-brain.js?v=profiles1';
 import { neighborhood } from '../defend/connectivity.js';
 import { createRig } from '../defend/neural-rig.js?v=complete1';
 import { PlaySession } from './core.js?v=complete1';
@@ -10,21 +10,23 @@ self.onmessage = async ({ data }) => {
   const { id, type } = data;
   try {
     if (type === 'init') {
-      if (data.brain && data.brain !== 'whole') throw new Error('The playable mode requires the complete source connectome');
-      const brain = 'whole', path = '../data/';
+      if (data.brain && !['whole', 'light'].includes(data.brain)) throw new Error('Unknown brain profile');
+      const brain = data.brain || 'whole', path = '../data/', graphPath = brain === 'whole' ? './brain-data/' : path;
       const [m, l, c, s, channels] = await Promise.all([
-        fetchGz('./brain-data/meta.json.gz'), fetchGz(path + 'labels.bin.gz'),
-        fetchGz('./brain-data/conn.bin.gz'), fetchGz('./brain-data/sign.bin.gz'),
+        fetchGz(graphPath + 'meta.json.gz'), fetchGz(path + 'labels.bin.gz'),
+        fetchGz(graphPath + 'conn.bin.gz'), fetchGz(graphPath + 'sign.bin.gz'),
         fetch(path + 'channels.json').then(r => { if (!r.ok) throw new Error('Missing channels'); return r.json(); }),
       ]);
-      if (brain === 'whole') {
+      {
         const sub = await fetch('../defend/data/channels.json').then(r => r.json());
         channels.features = Object.fromEntries(Object.keys(sub.features).map(name => [name, channels.features[name]]));
       }
       const meta = JSON.parse(new TextDecoder().decode(m));
-      rigData = { meta, labels: decodeLabels(l, meta.n_neurons), conn: await decodeCompleteBrain(meta, c, s), channels };
-      session = new PlaySession(createRig({ ...rigData, seed: data.seed }), { capture: true, brain });
-      if (data.saved) session.load(data.saved);
+      const conn = await (brain === 'whole' ? decodeCompleteBrain : decodeLightBrain)(meta, c, s);
+      const nextData = { meta, labels: decodeLabels(l, meta.n_neurons), conn, channels };
+      const next = new PlaySession(createRig({ ...nextData, seed: data.seed }), { capture: true, brain });
+      if (data.saved) next.load(data.saved);
+      rigData = nextData; session = next;
     } else if (!session) throw new Error('Not ready');
     if (type === 'inspect') {
       if (!Array.isArray(data.focus) || data.focus.length > 1000 || data.focus.some(i => !Number.isInteger(i) || i < 0 || i >= rigData.meta.n_neurons)) throw new Error('Invalid neuron selection');

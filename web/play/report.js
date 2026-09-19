@@ -1,5 +1,5 @@
 export function reportValues(artifact, brain = 'escape') {
-  const sum = mode => (brain === 'whole' ? artifact.evaluation.whole : artifact.evaluation.rows).filter(r => r.mode === mode).reduce((a, r) => ({
+  const sum = mode => (brain === 'whole' || brain === 'light' ? artifact.evaluation.whole : artifact.evaluation.rows).filter(r => r.mode === mode).reduce((a, r) => ({
     throws: a.throws + r.throws, threats: a.threats + r.threats, dodges: a.dodges + r.dodges, hits: a.hits + r.hits,
   }), { throws: 0, threats: 0, dodges: 0, hits: 0 });
   const current = sum('policy'), previous = sum('transfer');

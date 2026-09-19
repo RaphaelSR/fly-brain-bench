@@ -4,10 +4,27 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Fly Brain · Você contra a mosca</title>
 <meta name="description" content="Mire, ajuste a força e arremesse um chinelo 3D. Uma política treinada tenta escapar usando atividade neural simulada e sinais visuais construídos.">
-<link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="../defend/defend.css?v=patio2"><link rel="stylesheet" href="play.css?v=complete1">
+<link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="../defend/defend.css?v=patio2"><link rel="stylesheet" href="play.css?v=profiles1">
 </head>
 <body class="play live-mode">
-<dialog id="intro" aria-labelledby="introTitle"><p class="eyebrow">FLY BRAIN · PLAY</p><h1 id="introTitle" data-copy="title"></h1><p data-copy="intro"></p><p id="loading" role="status"></p><button id="enter" class="primary" disabled data-copy="enter"></button><p class="fine" data-copy="sensesText"></p></dialog>
+<dialog id="intro" aria-labelledby="introTitle">
+<p class="eyebrow">FLY BRAIN · PLAY</p><h1 id="introTitle" data-copy="chooseTitle"></h1><p class="cap" data-copy="chooseNote"></p>
+<fieldset id="setupFields">
+<legend class="sr-only" data-copy="brainMode"></legend>
+<div class="profile-choices">
+<label class="profile-choice"><input id="profileFull" type="radio" name="brainProfile" value="whole" checked><span><strong data-copy="fullChoice"></strong><small data-copy="fullSummary"></small></span></label>
+<label class="profile-choice"><input id="profileLight" type="radio" name="brainProfile" value="light"><span><strong data-copy="lightChoice"></strong><small data-copy="lightSummary"></small></span></label>
+</div>
+<p class="cap profile-warning" data-copy="profileWarning"></p>
+<label class="graphics-choice"><span data-copy="graphics"></span><select id="introGraphics"><option value="standard" data-copy="standardGraphics"></option><option value="light" data-copy="lightGraphics"></option></select></label>
+<p class="cap" data-copy="graphicsNote"></p>
+<label class="remember-choice"><input id="remember" type="checkbox" checked><span data-copy="remember"></span></label>
+</fieldset>
+<p id="preferencesError" class="cap" role="status" hidden data-copy="preferencesError"></p>
+<p id="loading" role="status" aria-live="polite"></p>
+<button id="download" class="primary" data-copy="download"></button><button id="enter" class="primary" disabled hidden data-copy="enter"></button><button id="retry" class="primary" hidden data-copy="retry"></button>
+<details class="intro-help"><summary data-copy="title"></summary><p data-copy="intro"></p><p class="fine" data-copy="sensesText"></p></details>
+</dialog>
 <header class="top"><div class="brand"><span class="mark" aria-hidden="true"></span><div><h1 data-copy="title"></h1><p data-copy="subtitle"></p></div></div><nav><a id="labLink" href="../defend/" data-copy="lab"></a><a data-science-link href="../science/" data-copy="science"></a></nav><label class="language"><span class="sr-only">Language</span><select id="lang"><option value="pt">Português</option><option value="en">English</option><option value="es">Español</option></select></label></header>
 <main class="play-main">
 <div class="play-left">
@@ -27,7 +44,7 @@
 <div class="round-result"><h2 id="outcome" aria-live="polite"></h2><p id="reward"></p><p id="error" role="alert" hidden></p></div>
 </div>
 <aside class="rail">
-<section class="card"><h2 data-copy="flightTitle"></h2><p id="brainMode" data-copy="wholeMode"></p><p id="brainModeNote" class="cap"></p><p id="neuralStatus" class="cap"></p><p id="flightStatus"></p><p id="goalStatus"></p><p class="cap" data-copy="navigationNote"></p><button id="legacy" class="ghost" data-copy="legacy"></button></section>
+<section class="card"><h2 data-copy="flightTitle"></h2><p id="brainMode"></p><p id="brainModeNote" class="cap"></p><p id="neuralStatus" class="cap"></p><button id="changeSetup" class="ghost" data-copy="changeSetup"></button><label class="graphics-choice"><span data-copy="graphics"></span><select id="graphics"><option value="standard" data-copy="standardGraphics"></option><option value="light" data-copy="lightGraphics"></option></select></label><p class="cap" data-copy="graphicsNote"></p><p id="flightStatus"></p><p id="goalStatus"></p><p class="cap" data-copy="navigationNote"></p><button id="legacy" class="ghost" data-copy="legacy"></button></section>
 <section class="card options"><h2 data-copy="controls"></h2><label><input id="learning" type="checkbox" checked><span data-copy="learning"></span></label><p class="cap" data-copy="learningNote"></p><label><input id="gestures" type="checkbox" checked><span data-copy="gestures"></span></label><label><input id="cinematic" type="checkbox" checked><span data-copy="cinematic"></span></label><label><input id="intense" type="checkbox" checked><span data-copy="intense"></span></label><p class="cap" data-copy="objectsNote"></p><p><span data-copy="fallen"></span>: <b id="fallen">0 / 8</b></p><button id="tidy" class="ghost" data-copy="tidy"></button></section>
 <section class="card brain-card" id="brainCard">
       <h2><span data-copy="brainTitle">Neural activity</span><span id="mActive" class="mono dim"></span></h2>
@@ -59,5 +76,6 @@
 </main>
 <section class="methods"><details><summary data-copy="method"></summary><p data-copy="methodText"></p></details><details><summary data-copy="senses"></summary><p data-copy="sensesText"></p></details><details><summary data-copy="evaluation"></summary><p data-copy="evaluationText"></p><a href="pretrained.json" data-copy="report"></a> · <a href="https://github.com/RaphaelSR/fly-brain-bench/blob/main/tools/train-play.mjs" data-copy="audit"></a> · <a href="brain-benchmark.json" data-copy="brainBenchmark"></a> · <a href="https://github.com/RaphaelSR/fly-brain-bench/blob/main/docs/flight-and-whole-brain.md" data-copy="research"></a></details></section>
 <dialog id="sceneDialog" class="scene-dialog" aria-labelledby="btnSceneFull"></dialog>
-<script type="module" src="page.js?v=complete1"></script>
+<dialog id="switchDialog" class="switch-dialog" aria-labelledby="switchTitle"><h2 id="switchTitle" data-copy="changeSetup"></h2><p data-copy="changeConfirm"></p><div class="actions"><button id="switchCancel" class="ghost" data-copy="stay"></button><button id="switchContinue" class="primary" data-copy="changeSetup"></button></div></dialog>
+<script type="module" src="page.js?v=profiles1"></script>
 </body></html>

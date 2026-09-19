@@ -61,5 +61,15 @@ test('actual play worker advances live, locks throws, saves one outcome and rest
     const widerStep = await request('step', { ticks: 12 });
     assert.equal(widerStep.error, undefined);
     assert.equal(widerStep.state.brain, 'whole');
+    const lightSave = { ...saved, brain: 'light' };
+    const light = await request('init', { seed: 77, brain: 'light', saved: lightSave });
+    assert.equal(light.error, undefined); validateSave(light.save);
+    assert.equal(light.state.neural.neurons, 138639); assert.equal(light.state.neural.pairs, 2700513);
+    assert.equal(light.state.neural.threshold, 5); assert.equal(light.state.neural.learning, true);
+    assert.ok((await request('restore', { seed: 2, saved })).error);
+    const lightStep = await request('step', { ticks: 12 });
+    assert.equal(lightStep.state.brain, 'light'); assert.notDeepEqual(lightStep.state.frame, light.state.frame);
+    const lightGraph = await request('inspect', { focus: [0] }); assert.ok(lightGraph.graph.total > 0);
+    assert.deepEqual((await request('restore', { seed: 77, saved: lightSave })).save, lightSave);
   } finally { globalThis.fetch = oldFetch; globalThis.self = oldSelf; }
 });
