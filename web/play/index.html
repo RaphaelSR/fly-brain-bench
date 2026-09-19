@@ -4,7 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Fly Brain · Você contra a mosca</title>
 <meta name="description" content="Mire, ajuste a força e arremesse um chinelo 3D. Uma política treinada tenta escapar usando atividade neural simulada e sinais visuais construídos.">
-<link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="../defend/defend.css?v=play1"><link rel="stylesheet" href="play.css">
+<link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="../defend/defend.css?v=patio2"><link rel="stylesheet" href="play.css?v=patio2">
 </head>
 <body class="play live-mode">
 <dialog id="intro" aria-labelledby="introTitle"><p class="eyebrow">FLY BRAIN · PLAY</p><h1 id="introTitle" data-copy="title"></h1><p data-copy="intro"></p><p id="loading" role="status"></p><button id="enter" class="primary" disabled data-copy="enter"></button><p class="fine" data-copy="sensesText"></p></dialog>
@@ -13,7 +13,7 @@
 <div class="play-left">
 <section class="stage" data-scene-size="half">
 <div class="scene-toolbar"><strong id="phase" role="status"></strong><label class="scene-size"><span id="sceneSizeLabel" data-i18n="scene.size"></span><select id="sceneSize" aria-labelledby="sceneSizeLabel"><option value="half" data-i18n="scene.half"></option><option value="large" data-i18n="scene.large"></option></select></label><button id="btnSceneFull" class="ghost" aria-haspopup="dialog" aria-controls="sceneDialog" aria-expanded="false" data-i18n="scene.full"></button><button id="btnSceneExit" class="ghost scene-exit" data-i18n="scene.exit"></button></div>
-<div class="arenas" id="arenas"><figure class="pane"><canvas id="scene" class="v3d" tabindex="0" aria-label="3D aiming area"></canvas><figcaption><span id="roundLabel"></span><span id="roundScore"></span><strong id="roundOutcome"></strong></figcaption><p class="aim-hint" data-copy="hint"></p></figure></div>
+<div class="arenas" id="arenas"><figure class="pane"><canvas id="scene" class="v3d" tabindex="0" aria-label="3D aiming area"></canvas><figcaption><span id="roundLabel"></span><span id="roundScore"></span><strong id="roundOutcome"></strong></figcaption><p id="gestureHint" class="aim-hint" data-copy="hint"></p></figure></div>
 </section>
 <footer class="transport shot-controls">
 <div class="aim-sliders">
@@ -27,7 +27,7 @@
 <div class="round-result"><h2 id="outcome" aria-live="polite"></h2><p id="reward"></p><p id="error" role="alert" hidden></p></div>
 </div>
 <aside class="rail">
-<section class="card options"><h2 data-copy="controls"></h2><label><input id="learning" type="checkbox"><span data-copy="learning"></span></label><p class="cap" data-copy="learningNote"></p><label><input id="cinematic" type="checkbox" checked><span data-copy="cinematic"></span></label><label><input id="intense" type="checkbox" checked><span data-copy="intense"></span></label></section>
+<section class="card options"><h2 data-copy="controls"></h2><label><input id="learning" type="checkbox" checked><span data-copy="learning"></span></label><p class="cap" data-copy="learningNote"></p><label><input id="gestures" type="checkbox" checked><span data-copy="gestures"></span></label><label><input id="cinematic" type="checkbox" checked><span data-copy="cinematic"></span></label><label><input id="intense" type="checkbox" checked><span data-copy="intense"></span></label><p class="cap" data-copy="objectsNote"></p><p><span data-copy="fallen"></span>: <b id="fallen">0 / 8</b></p><button id="tidy" class="ghost" data-copy="tidy"></button></section>
 <section class="card brain-card" id="brainCard">
       <h2><span data-i18n="brain.title">The escape circuit</span><span id="mActive" class="mono dim"></span></h2>
       <p id="brainCount" class="brain-count mono"></p>
@@ -58,5 +58,5 @@
 </main>
 <section class="methods"><details><summary data-copy="method"></summary><p data-copy="methodText"></p></details><details><summary data-copy="senses"></summary><p data-copy="sensesText"></p></details><details><summary data-copy="evaluation"></summary><p data-copy="evaluationText"></p><a href="pretrained.json" data-copy="report"></a> · <a href="https://github.com/RaphaelSR/fly-brain-bench/blob/main/tools/train-play.mjs" data-copy="audit"></a></details></section>
 <dialog id="sceneDialog" class="scene-dialog" aria-labelledby="btnSceneFull"></dialog>
-<script type="module" src="page.js"></script>
+<script type="module" src="page.js?v=patio2"></script>
 </body></html>

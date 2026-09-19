@@ -1,6 +1,7 @@
 import { fetchGz, decodeLabels, decodeConnectome } from '../js/data.js';
 import { createRig } from '../defend/neural-rig.js';
-import { PlaySession } from './core.js';
+import { PlaySession } from './core.js?v=patio2';
+import { newProps } from './props.js';
 
 let session, rigData;
 self.onmessage = async ({ data }) => {
@@ -22,7 +23,12 @@ self.onmessage = async ({ data }) => {
       if (!Number.isInteger(data.ticks) || data.ticks < 1 || data.ticks > 12) throw new Error('Invalid time step');
       for (let i = 0; i < data.ticks; i++) session.step();
     }
-    if (type === 'throw') session.throw(data.parameters, { learning: data.learning === true });
+    if (type === 'throw') session.throw(data.parameters, { learning: data.learning !== false });
+    if (type === 'nudge' || type === 'tidy') {
+      if (session.phase !== 'aim') throw new Error('Wait for this throw to finish');
+      if (type === 'nudge') session.world.nudge(data.object, data.dx, data.dz);
+      else session.world.props = newProps();
+    }
     if (type === 'restore') {
       if (session.phase !== 'aim') throw new Error('Wait for this throw to finish');
       const next = new PlaySession(createRig({ ...rigData, seed: data.seed }), { capture: true });

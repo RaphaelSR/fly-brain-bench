@@ -18,17 +18,25 @@ test('actual play worker advances live, locks throws, saves one outcome and rest
     const saved = { protocol: PROTOCOL, policy: artifact.policy, stats: { throws: 0, hits: 0, dodges: 0, misses: 0 } };
     const initial = await request('init', { seed: 77, saved }); validateSave(initial.save);
     const moved = await request('step', { ticks: 12 }); assert.notDeepEqual(moved.state.frame, initial.state.frame);
+    const nudged = await request('nudge', { object: 'fern', dx: 1, dz: 0 });
+    assert.equal(nudged.save, null); assert.deepEqual(nudged.state.stats, initial.state.stats);
+    assert.ok(nudged.state.frame.props[0].omega > 0);
+    assert.ok((await request('nudge', { object: 'bad', dx: 1, dz: 0 })).error);
+    const tidy = await request('tidy'); assert.equal(tidy.state.frame.props[0].omega, 0);
+    assert.equal(tidy.state.trained, initial.state.trained);
     assert.ok((await request('step', { ticks: 13 })).error);
-    const shot = { parameters: { aim: { x: 0, z: 0 }, power: 65, elevation: -12 }, learning: true };
+    const shot = { parameters: { aim: { x: 0, z: 0 }, power: 65, elevation: -12 } };
     assert.equal((await request('throw', shot)).state.phase, 'flight');
     assert.ok((await request('throw', shot)).error);
+    assert.ok((await request('nudge', { object: 'fern', dx: 1, dz: 0 })).error);
+    assert.ok((await request('tidy')).error);
     assert.ok((await request('restore', { seed: 2, saved })).error);
     let outcomes = 0, result;
     for (let i = 0; i < 36; i++) {
       result = await request('step', { ticks: 12 }); assert.equal(result.error, undefined);
       if (result.save) { outcomes++; validateSave(result.save); }
     }
-    assert.equal(outcomes, 1); assert.equal(result.state.stats.throws, 1); assert.equal(result.state.trained, 2401);
+    assert.equal(outcomes, 1); assert.equal(result.state.stats.throws, 1); assert.equal(result.state.trained, artifact.policy.episodes + 1);
     for (let i = 0; i < 13; i++) result = await request('step', { ticks: 12 });
     assert.equal(result.state.phase, 'aim');
     assert.ok((await request('restore', { seed: 2, saved: {} })).error);

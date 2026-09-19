@@ -541,11 +541,23 @@ neuroscience evidence): Kassis et al. (2026),
 
 ### Playable slipper mode
 
-`web/play/` is a separate, continuous-world game. Drag to aim horizontally, adjust
-power/elevation and throw once. The guide and live projectile share the same
+`web/play/` is a separate, continuous-world game. Drag to aim horizontally, pull
+down to increase power and release to throw; a short tap instead nudges a prop.
+Releasing outside the canvas, Escape, a canceled pointer or a second touch cancels
+the gesture. Sliders and the throw button remain available, and gesture release
+can be disabled. The guide and live projectile share the same
 1/120-second integrator, gravity, bounce and courtyard colliders. The aiming
 camera stays fixed; optional cinematography starts after release. Mobile views
 offer half/large scenes and a full-screen dialog with the same live canvas.
+
+The house courtyard uses locally hosted CC0 photographic diffuse, normal and
+roughness maps from Poly Haven ([sources](web/play/assets/README.md)), plus
+procedural Three.js walls, door, window, plants and household objects. Eight props
+can tip/slide from a tap or a slipper impact. Their changing colliders affect both
+the preview and live projectile. This is bounded, approximate game physics, not a
+general rigid-body solver: furniture/walls stay fixed and foliage is decorative.
+Props persist between throws and during replay; Tidy resets only the scene.
+Reloading also resets props, not learned weights or completed scores.
 
 The fly's idle wander/hops are scripted. During a throw, a 57-feature, 8-action
 policy receives 49 features from the simulated 6,203-cell FlyWire circuit plus
@@ -554,26 +566,47 @@ player's aim, power or future path. This hybrid is not a biologically validated
 fly, and its added geometric features prevent attributing success to the
 connectome alone. The brain inspector displays neural activity, not these extras.
 
-The default policy is frozen and pretrained for 2,400 throws. Optional online
-learning uses the existing REINFORCE-inspired algorithm, batches of 8 and terminal
+Learning starts enabled and can be disabled for a frozen-policy comparison.
+Online learning uses the existing REINFORCE-inspired algorithm, batches of 8 and terminal
 rewards: hit −3; survive a throw that would hit an immobile fly +3; otherwise 0,
-plus existing action costs. The immobile counterfactual determines the score's
+plus existing action costs. After a successful outcome, learning credits actions
+up to the avoided counterfactual contact plus one observation interval, instead
+of delaying positive credit to unrelated late actions. The counterfactual timing
+is an after-outcome training label, never an observation supplied to the policy.
+The immobile counterfactual determines the score's
 “dodge” versus “aim miss”; existing motion can contribute, so it is not a causal
 test of learned reactions. Replay is presentation-only. Completed throws save to
 `fly-play-save-v1`, independently of laboratory/prediction data. Backup import,
 export, pretrained reset and untrained reset are explicit; unfinished trajectories
 are not resumed. Other-tab save conflicts pause the session instead of overwriting.
+Existing saves are not replaced when new pretrained weights ship. Export a backup
+and explicitly choose Restart pretrained to install the latest package; this also
+resets the play score after confirmation. Learning explores and can cause mistakes:
+neither more episodes nor online learning guarantees monotonic improvement.
 
 Reproduce training/report with
-`node --experimental-default-type=module tools/train-play.mjs 2400`.
+`node --experimental-default-type=module tools/train-play.mjs 8000`.
 The final `ARTIFACT` line contains `web/play/pretrained.json`'s format. Evaluation
-alone can be rerun against the shipped weights by replacing `2400` with `--evaluate`.
-It uses five held-out shot seeds with matched starting poses/shots for trained,
-random-action and stationary controllers: 37/80, 11/80 and 0/80 avoided threats.
-Each controller also faces 40 initial non-threats, and can move into danger;
-total hits across all 120 throws were 47, 70 and 80 respectively. These exploratory
-results use one training seed, are not calibrated next-shot probabilities and do
-not validate connectome necessity. Read the per-seed report before generalizing.
+alone can be rerun against the shipped weights by replacing `8000` with `--evaluate`.
+Training warm-starts from the original 2,400-episode fixture and includes moving
+starts and fallen props. Checkpoints are selected by fewest hits on three
+validation seeds, never by the test set. The report contains attempted episodes,
+selected checkpoint and every validation candidate.
+
+Five fresh held-out seeds compare the selected policy, the previous published
+policy, random actions and no action, with matched starting scenes/shots: 240 throws
+per controller, including 160 initial threats and 80 non-threats. Test starts have
+no initial motion; idle gameplay is a different distribution. No action is not a
+rigidly fixed body. The UI reads counts from the published JSON. These exploratory
+results use one training seed, are not next-shot odds, do not establish statistical
+significance and do not validate connectome necessity.
+
+Selected checkpoint: **4,400 episodes**. It incurred **74/240 hits** versus the
+previous policy's **83/240**, and avoided **93/160 threats** versus **88/160**.
+The improvement is modest and not uniform across seeds. A first continued-training
+attempt did not improve held-out results; its unshipped report is preserved in
+`tools/fixtures/patio-first-training.json`. The revised credit assignment uses a
+fresh final test set. Read all per-seed results before generalizing.
 
 ### Data and model
 

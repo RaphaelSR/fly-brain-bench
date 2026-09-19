@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { SurvivalWorld } from '../web/defend/survival.js';
+import { PlayWorld } from '../web/play/world.js';
 import { PlaySession, sense, packPolicy, unpackPolicy, PROTOCOL } from '../web/play/core.js';
 import { makeShot, launch, traceShot, WORLD_STEP, SHOT_SECONDS } from '../web/play/physics.js';
 import { PlayStore, SAVE_KEY, validateSave } from '../web/play/storage.js';
 import { Policy } from '../web/defend/policy.js';
 import { COPY } from '../web/play/copy.js';
+import { reportValues, formatReport } from '../web/play/report.js';
 import { loadRig, mulberry } from '../tools/rig.mjs';
 
 const artifact = JSON.parse(readFileSync(new URL('../web/play/pretrained.json', import.meta.url)));
@@ -21,7 +23,7 @@ test('preview and actual projectile use identical time steps, bounces and obstac
   for (const origin of [{ x: 3.8, y: 2.8, z: 5.9 }, { x: 4, y: 1, z: 7 }]) {
     for (const power of [25, 65, 100]) for (const elevation of [-35, -12, 40]) {
       const shot = makeShot(origin, parameters.aim, power, elevation), guide = traceShot(shot);
-      const world = new SurvivalWorld({ expanded: true, x: 15, z: -15 }); launch(world, shot);
+      const world = new PlayWorld({ x: 15, z: -15 }); launch(world, shot);
       for (let i = 0; i < Math.round(SHOT_SECONDS / WORLD_STEP); i++) {
         world.step();
         if (i % 4 === 3) assert.deepEqual(world.projectile, guide.points[(i + 1) / 4]);
@@ -47,7 +49,7 @@ test('idle movement is continuous, throwing is one-at-a-time, frozen weights nev
   const s = new PlaySession(fakeRig()); s.load(fresh()); const before = packPolicy(s.policy);
   for (let i = 0; i < 480; i++) s.step();
   assert.ok(Math.hypot(s.world.x, s.world.z) > 0.01); assert.equal(s.stats.throws, 0); assert.equal(s.world.hit, false);
-  s.throw(parameters); assert.throws(() => s.throw(parameters), /One slipper/);
+  s.throw(parameters, { learning: false }); assert.throws(() => s.throw(parameters), /One slipper/);
   complete(s); assert.equal(s.stats.throws, 1); assert.deepEqual(packPolicy(s.policy), before);
   for (let i = 0; i < 156; i++) s.step(); assert.equal(s.phase, 'aim');
   assert.equal(s.stats.throws, 1); assert.equal(s.world.projectileActive, false);
@@ -66,7 +68,7 @@ test('immobile control distinguishes misses, hits and movement-based dodges with
 
 test('optional learning is outcome-only; partial batches and normalization survive backups', () => {
   const s = new PlaySession(fakeRig()); s.load(fresh()); const before = s.policy.episodes;
-  s.throw(parameters, { learning: true });
+  assert.equal(s.learning, true); s.throw(parameters);
   s.step(); assert.equal(s.policy.episodes, before);
   complete(s); assert.equal(s.policy.episodes, before + 1); assert.equal(s.policy.pending, 1);
   const restored = new PlaySession(fakeRig()); restored.load(JSON.parse(JSON.stringify(s.save())));
@@ -101,21 +103,33 @@ test('isolated storage handles roundtrip, conflicts, quota and explicitly approv
 });
 
 test('published weights, held-out report and all localized UI copy agree', () => {
-  validateSave(fresh()); assert.equal(artifact.policy.episodes, 2400);
+  validateSave(fresh()); assert.equal(artifact.policy.episodes, artifact.training.episodes);
   assert.equal(artifact.protocol, PROTOCOL); assert.equal(artifact.policy.W.length, 57 * 8);
-  for (const [mode, expected] of [['policy', 37], ['random', 11], ['still', 0]]) {
+  for (const mode of ['policy', 'previous', 'random', 'hold']) {
     const rows = artifact.evaluation.rows.filter(r => r.mode === mode);
-    assert.equal(rows.length, 5); assert.equal(rows.reduce((n, r) => n + r.throws, 0), 120);
-    assert.equal(rows.reduce((n, r) => n + r.threats, 0), 80);
-    assert.equal(rows.reduce((n, r) => n + r.dodges, 0), expected);
+    assert.equal(rows.length, 5); assert.equal(rows.reduce((n, r) => n + r.throws, 0), 240);
+    assert.equal(rows.reduce((n, r) => n + r.threats, 0), 160);
+    assert.ok(rows.every(r => r.dodges <= r.threats && r.hits <= r.throws));
   }
   const html = readFileSync(new URL('../web/play/index.html', import.meta.url), 'utf8');
   const keys = [...html.matchAll(/data-copy="([^"]+)"/g)].map(m => m[1]);
   for (const copy of Object.values(COPY)) {
     assert.deepEqual(Object.keys(copy), Object.keys(COPY.pt));
     for (const key of keys) assert.ok(copy[key]?.length, key);
-    assert.ok(copy.evaluationText.includes('37')); assert.ok(copy.evaluationText.includes('11'));
+    assert.ok(!formatReport(copy.evaluationText, artifact, 'en').includes('{'));
   }
+  const values = reportValues(artifact); assert.equal(values.total, 240); assert.equal(values.threats, 160);
+  assert.ok(/id="learning"[^>]*checked/.test(html)); assert.ok(/id="gestures"[^>]*checked/.test(html));
+});
+
+test('successful outcome credits pre-contact actions only, without learning before the result', () => {
+  const s = new PlaySession(fakeRig()); let credited = null;
+  s.policy.learn = steps => { credited = steps; };
+  s.world.hit = false; s.control = true; s.controlAt = 1; s.training = true;
+  s.steps = [0.55, 0.7, 0.85, 1, 1.15, 1.3, 2].map(t => ({ t, r: 0 }));
+  assert.equal(credited, null); s.finish();
+  assert.equal(credited.at(-1).t, 1.15); assert.equal(credited.at(-1).r, 3);
+  assert.equal(s.steps.at(-1).r, 0); assert.equal(s.result.learned, true);
 });
 
 test('real FlyWire rig yields actual neural snapshots and valid actions in a human-controlled throw', () => {

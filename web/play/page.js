@@ -1,16 +1,19 @@
 import * as THREE from '../vendor/three/three.module.min.js';
-import { Arena3D } from '../defend/arena3d.js?v=play1';
+import { Arena3D } from '../defend/arena3d.js?v=patio2';
+import { createHomeCourtyard } from './home-scene.js';
+import { ThrowGesture } from './gesture.js';
 import { bindSceneLayout } from '../defend/scene-layout.js';
 import { BrainView } from '../js/gl.js';
 import { BrainInspector } from '../defend/brain-inspector.js?v=play1';
 import { fetchGz, decodeLabels, decodePositions, decodeConnectome } from '../js/data.js';
 import { detectLocale, setLocale, getLocale, applyDom } from '../js/i18n.js';
-import { sampleEpisode } from '../defend/live.js';
-import { PlayStore, validateSave } from './storage.js';
+import { sampleEpisode } from '../defend/live.js?v=patio2';
+import { PlayStore, validateSave } from './storage.js?v=patio2';
 import { Policy } from '../defend/policy.js';
-import { PROTOCOL, packPolicy } from './core.js';
-import { makeShot, traceShot } from './physics.js';
-import { COPY } from './copy.js';
+import { PROTOCOL, packPolicy } from './core.js?v=patio2';
+import { makeShot, traceShot } from './physics.js?v=patio2';
+import { COPY } from './copy.js?v=patio2';
+import { formatReport } from './report.js';
 
 const $ = id => document.getElementById(id), c = key => COPY[getLocale()][key];
 const label = (id, value) => { const el = $(id), text = String(value); if (el.textContent !== text) el.textContent = text; };
@@ -19,8 +22,10 @@ setLocale(new URLSearchParams(location.search).get('lang') || detectLocale());
 let state, previous, received = 0, running = false, entered = false, busy = false, throwing = false, restoring = false;
 let renderer, brain, inspector, store, saved, pretrained, hasSaved = false, saveFailed = false;
 let trace, ring, lastPhase, lastSignal = -1, recording = [], lastReplay = null, replay = null;
+let propSignature = '', dragging = false;
+const gesture = new ThrowGesture();
 let saveQueue = Promise.resolve(), sequence = 0, lastTime = 0, lastStep = 0;
-const worker = new Worker(new URL('./play.worker.js', import.meta.url), { type: 'module' });
+const worker = new Worker(new URL('./play.worker.js?v=patio2', import.meta.url), { type: 'module' });
 const requests = new Map();
 worker.onmessage = ({ data }) => {
   const pending = requests.get(data.id);
@@ -63,6 +68,8 @@ function accept(response, initial = false) {
     if (state.phase === 'aim') updateAim();
     lastPhase = state.phase;
   }
+  const signature = JSON.stringify(state.frame.props?.map(p => [p.x.toFixed(3), p.z.toFixed(3), p.angle.toFixed(3)]));
+  if (state.phase === 'aim' && signature !== propSignature) { propSignature = signature; updateAim(); }
   if (brain && state.signal?.id !== lastSignal && state.signal?.snap) {
     lastSignal = state.signal.id;
     brain.act.fill(0);
@@ -82,7 +89,7 @@ function parameters() {
 function updateAim() {
   for (const id of ['direction', 'power', 'elevation']) $(id + 'Value').textContent = $(id).value + (id === 'power' ? '%' : '°');
   if (!state || !trace) return;
-  const p = parameters(), points = traceShot(makeShot(state.origin, p.aim, p.power, p.elevation)).points;
+  const p = parameters(), points = traceShot(makeShot(state.origin, p.aim, p.power, p.elevation), null, state.frame.props).points;
   trace.geometry.dispose();
   const path = new THREE.CurvePath();
   for (let i = 1; i < points.length; i++) {
@@ -96,7 +103,7 @@ function paint() {
   if (!state) return;
   const aiming = state.phase === 'aim' && !replay && !throwing && !restoring;
   $('btnThrow').disabled = !entered || !running || !aiming;
-  for (const id of ['direction', 'power', 'elevation', 'learning', 'reset', 'blank', 'import']) $(id).disabled = !aiming;
+  for (const id of ['direction', 'power', 'elevation', 'learning', 'reset', 'blank', 'import', 'tidy', 'gestures']) $(id).disabled = !aiming;
   $('btnReplay').disabled = !lastReplay || !aiming;
   const playing = replay ? !replay.paused : running;
   label('btnPlay', c(playing ? 'pause' : 'resume'));
@@ -104,6 +111,8 @@ function paint() {
   label('roundLabel', `${c('attempts')} ${state.stats.throws + (state.phase === 'flight' ? 1 : 0)}`);
   label('roundScore', ['hits', 'dodges', 'misses'].map(key => `${c(key)}: ${state.stats[key]}`).join(' · '));
   label('roundOutcome', state.result ? c(state.result.kind) : '');
+  label('fallen', `${state.frame.props?.filter(p => p.angle > 1.4).length || 0} / ${state.frame.props?.length || 0}`);
+  label('gestureHint', dragging ? c('release') + ' · ' + $('power').value + '%' : c($('gestures').checked ? 'hint' : 'buttonHint'));
   for (const id of ['hits', 'dodges', 'misses']) label(id, state.stats[id]);
   label('trained', state.trained.toLocaleString(getLocale()));
   label('saveStatus', c(saveFailed ? 'saveError' : hasSaved ? 'saved' : 'ephemeral'));
@@ -114,7 +123,8 @@ function paint() {
 }
 function translate() {
   applyDom();
-  for (const el of document.querySelectorAll('[data-copy]')) el.textContent = c(el.dataset.copy);
+  for (const el of document.querySelectorAll('[data-copy]')) el.textContent = el.dataset.copy === 'evaluationText'
+    ? pretrained ? formatReport(c('evaluationText'), pretrained, getLocale()) : c('loading') : c(el.dataset.copy);
   $('lang').value = getLocale(); document.title = `Fly Brain · ${c('title')}`;
   $('labLink').href = `../defend/?lang=${getLocale()}`;
   $('loading').textContent = c($('enter').disabled ? 'loading' : 'ready');
@@ -166,7 +176,7 @@ function animate(now) {
       episode = { launch: state.origin, angle: shot.angle, approach: 1.8, contactAt: null, frames: [] };
     }
     const framing = aiming || !$('cinematic').checked ? {
-      target: new THREE.Vector3(state.home.x + 0.5, 0.65, state.home.z + 0.8), distance: 15, pitch: 0.78, yaw: 0.57,
+      target: new THREE.Vector3(state.home.x + 0.5, 0.65, state.home.z + 0.8), distance: 15.8, pitch: 0.5, yaw: 0.38,
     } : null;
     const playing = replay ? !replay.paused : running;
     renderer.drawLive(frame, episode, playing ? dt : 0, $('cinematic').checked, framing);
@@ -177,12 +187,14 @@ function animate(now) {
 function bindAim() {
   const canvas = $('scene');
   for (const [event, fn] of Object.entries(renderer.view.handlers)) canvas.removeEventListener(event, fn);
-  let pointer = null;
   const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), point = new THREE.Vector3();
-  const aim = e => {
-    if (state?.phase !== 'aim' || replay || throwing || restoring) return;
+  const allowed = () => entered && running && state?.phase === 'aim' && !replay && !throwing && !restoring;
+  const cast = e => {
     const rect = canvas.getBoundingClientRect();
     ray.setFromCamera(new THREE.Vector2((e.clientX - rect.left) / rect.width * 2 - 1, 1 - (e.clientY - rect.top) / rect.height * 2), renderer.view.camera);
+  };
+  const aim = e => {
+    cast(e);
     if (!ray.ray.intersectPlane(plane, point)) return;
     const bearing = Math.atan2(point.x - state.origin.x, point.z - state.origin.z);
     const base = Math.atan2(state.home.x - state.origin.x, state.home.z - state.origin.z);
@@ -190,11 +202,38 @@ function bindAim() {
     $('direction').value = Math.round(Math.max(-65, Math.min(65, delta))); updateAim();
   };
   canvas.addEventListener('pointerdown', e => {
-    if (e.button !== 0 || pointer !== null) return;
-    pointer = e.pointerId; canvas.setPointerCapture(pointer); aim(e);
+    if (e.button !== 0 || !allowed()) return;
+    if (!gesture.begin(e.pointerId, e.clientX, e.clientY, Number($('power').value), canvas.clientHeight)) { dragging = false; paint(); return; }
+    canvas.setPointerCapture(e.pointerId); aim(e);
   });
-  canvas.addEventListener('pointermove', e => { if (e.pointerId === pointer) aim(e); });
-  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(type, () => { pointer = null; });
+  canvas.addEventListener('pointermove', e => {
+    if (!allowed()) return;
+    const movement = gesture.move(e.pointerId, e.clientX, e.clientY); if (!movement) return;
+    dragging = movement.armed;
+    if ($('gestures').checked) $('power').value = movement.power;
+    aim(e); paint();
+  });
+  canvas.addEventListener('pointerup', async e => {
+    if (!gesture.active || gesture.active.id !== e.pointerId) return;
+    const r = canvas.getBoundingClientRect();
+    const action = gesture.end(e.pointerId, e.clientX, e.clientY, e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom);
+    dragging = false; paint(); if (!allowed()) return;
+    if (action === 'throw' && $('gestures').checked) { await throwSlipper(); return; }
+    if (action === 'tap') {
+      cast(e);
+      const hit = ray.intersectObjects(renderer.environment.pickables, true)[0];
+      let object = hit?.object; while (object && !object.userData.propId) object = object.parent;
+      if (object?.userData.propId) {
+        throwing = true; paint();
+        try {
+          accept(await request('nudge', { object: object.userData.propId, dx: ray.ray.direction.x, dz: ray.ray.direction.z }));
+        } catch { fail(); } finally { throwing = false; paint(); }
+      }
+    }
+  });
+  const cancel = () => { gesture.cancel(); dragging = false; paint(); };
+  for (const type of ['pointercancel', 'lostpointercapture']) canvas.addEventListener(type, cancel);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') cancel(); });
 }
 
 translate(); $('intro').showModal(); bindSceneLayout();
@@ -204,6 +243,12 @@ $('lang').addEventListener('change', () => {
   translate();
 });
 for (const id of ['direction', 'power', 'elevation']) $(id).addEventListener('input', updateAim);
+$('gestures').addEventListener('change', paint);
+$('tidy').addEventListener('click', async () => {
+  if (state?.phase !== 'aim' || throwing || restoring || replay) return;
+  throwing = true; paint();
+  try { accept(await request('tidy')); } catch { fail(); } finally { throwing = false; paint(); }
+});
 $('btnThrow').addEventListener('click', throwSlipper);
 $('btnPlay').addEventListener('click', () => { if (replay) replay.paused = !replay.paused; else running = !running; paint(); });
 $('btnReplay').addEventListener('click', () => {
@@ -224,17 +269,17 @@ $('import').addEventListener('change', async () => {
 });
 $('intro').addEventListener('cancel', e => e.preventDefault());
 $('enter').addEventListener('click', () => { entered = true; running = !saveFailed; $('intro').close(); $('btnSceneFull').focus({ preventScroll: true }); paint(); });
-document.addEventListener('visibilitychange', () => { previous = null; lastStep = performance.now(); });
+document.addEventListener('visibilitychange', () => { previous = null; lastStep = performance.now(); gesture.cancel(); dragging = false; });
 
 try {
-  renderer = new Arena3D($('scene'));
+  renderer = new Arena3D($('scene'), { courtyard: createHomeCourtyard });
   trace = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xeb9a24, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false, fog: false, toneMapped: false }));
   trace.renderOrder = 10; renderer.view.scene.add(trace);
   ring = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.22, 32), new THREE.MeshBasicMaterial({ color: 0xeb9a24, side: THREE.DoubleSide, transparent: true, depthTest: false, depthWrite: false, fog: false, toneMapped: false }));
   ring.rotation.x = -Math.PI / 2; ring.renderOrder = 11; renderer.view.scene.add(ring); bindAim();
   let local = null;
   try { store = new PlayStore(localStorage); local = store.load(); hasSaved = !!local; } catch { saveFailed = true; }
-  const response = await fetch('pretrained.json'); if (!response.ok) throw new Error('Missing pretrained policy');
+  const response = await fetch('pretrained.json?v=patio2'); if (!response.ok) throw new Error('Missing pretrained policy');
   pretrained = await response.json(); validateSave(fresh(pretrained.policy));
   accept(await request('init', { seed: seed(), saved: local || fresh(pretrained.policy) }), true);
   const [m, l, p, b, s] = await Promise.all(['meta.json.gz', 'labels.bin.gz', 'pos.u16.bin.gz', 'conn.bin.gz', 'sign.bin.gz'].map(name => fetchGz('../defend/data/' + name)));
@@ -244,6 +289,7 @@ try {
   const colors = { acetylcholine: [0.96, 0.68, 0.26], gaba: [0.28, 0.58, 0.88], glutamate: [0.64, 0.45, 0.87], dopamine: [0.35, 0.78, 0.55], serotonin: [0.90, 0.45, 0.65], octopamine: [0.30, 0.78, 0.80], unknown: [0.45, 0.52, 0.55] };
   brain.setNTColors(meta.dicts.top_nt.map(name => colors[name] || colors.unknown));
   inspector = new BrainInspector(brain, meta, labels, decodeConnectome(b, n, meta.n_edges, s));
+  await renderer.environment.ready;
   $('cinematic').checked = !matchMedia('(prefers-reduced-motion: reduce)').matches;
   $('enter').disabled = false; translate(); requestAnimationFrame(animate);
 } catch { $('loading').textContent = c('error'); }

@@ -8,6 +8,7 @@ export const WORLD_STEP = 1 / 120;
 export const WINDUP = 0.55;
 
 export class SurvivalWorld {
+  get solids() { return SOLIDS; }
   constructor({ x = 0, z = 0, heading = 0, height = 0, angle = 1, approach = 1.8, expanded = false, roam = 6 } = {}) {
     this.x = x; this.z = z; this.height = 0; this.heading = heading;
     this.vx = 0; this.vz = 0; this.vy = 0; this.lean = 0; this.used = false;
@@ -69,7 +70,7 @@ export class SurvivalWorld {
       p.y = 0.06; this.pvy = this.pvy < -0.4 ? -this.pvy * 0.18 : 0;
       this.pvx *= Math.exp(-6 * dt); this.pvz *= Math.exp(-6 * dt);
     }
-    if (this.expanded) for (const solid of SOLIDS) {
+    if (this.expanded) for (const solid of this.solids) {
       const dx = p.x - solid.x, dz = p.z - solid.z, distance = Math.hypot(dx, dz);
       if (p.y < solid.height && distance < solid.radius + 0.7) {
         const nx = distance > 1e-8 ? dx / distance : 1, nz = distance > 1e-8 ? dz / distance : 0;
@@ -91,7 +92,7 @@ export class SurvivalWorld {
     this.height += this.vy * dt;
     this.x += this.vx * dt; this.z += this.vz * dt;
     let floor = 0;
-    if (this.expanded) for (const solid of SOLIDS) {
+    if (this.expanded) for (const solid of this.solids) {
       const dx = this.x - solid.x, dz = this.z - solid.z, d = Math.hypot(dx, dz);
       if (d < solid.radius + 0.25) {
         if (oldHeight >= solid.height - 0.02 && this.vy <= 0) floor = Math.max(floor, solid.height);

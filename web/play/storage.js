@@ -1,5 +1,5 @@
 import { Policy } from '../defend/policy.js';
-import { PROTOCOL, unpackPolicy } from './core.js';
+import { PROTOCOL, unpackPolicy } from './core.js?v=patio2';
 export const SAVE_KEY = 'fly-play-save-v1';
 
 export function validateSave(data) {

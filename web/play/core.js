@@ -1,6 +1,6 @@
-import { SurvivalWorld, WINDUP } from '../defend/survival.js?v=play1';
+import { PlayWorld } from './world.js';
 import { Policy } from '../defend/policy.js';
-import { makeShot, launch, traceShot, WORLD_STEP, SHOT_SECONDS } from './physics.js';
+import { makeShot, launch, traceShot, WORLD_STEP, SHOT_SECONDS } from './physics.js?v=patio2';
 
 export const PROTOCOL = 'fly-play-hybrid-v1';
 export const EXTRA = 8;
@@ -41,11 +41,11 @@ export class PlaySession {
     this.capture = capture; this.observation = 0;
     this.rig = rig; this.policy = new Policy(rig.D + EXTRA, 8); this.policy.rand = rig.rng;
     this.stats = { throws: 0, hits: 0, dodges: 0, misses: 0 };
-    this.learning = false; this.phase = 'aim'; this.clock = 0; this.idleTicks = 0;
-    this.world = new SurvivalWorld({ expanded: true }); this.prepare();
+    this.learning = true; this.phase = 'aim'; this.clock = 0; this.idleTicks = 0;
+    this.world = new PlayWorld(); this.prepare();
   }
   prepare() {
-    if (this.world.hit) this.world = new SurvivalWorld({ expanded: true, x: (this.rig.rng() - 0.5) * 3, z: (this.rig.rng() - 0.5) * 3 });
+    if (this.world.hit) this.world = new PlayWorld({ props: this.world.props, x: (this.rig.rng() - 0.5) * 3, z: (this.rig.rng() - 0.5) * 3 });
     this.world.projectileActive = false; this.world.projectile.y = -30;
     this.world.used = false; this.world.walk = 0;
     this.home = { x: this.world.x, z: this.world.z };
@@ -55,7 +55,8 @@ export class PlaySession {
   throw(parameters, { learning = this.learning, mode = 'policy' } = {}) {
     if (this.phase !== 'aim') throw new Error('One slipper at a time');
     const shot = makeShot(this.origin, parameters.aim, parameters.power, parameters.elevation);
-    this.control = traceShot(shot, this.world).wouldHit;
+    const control = traceShot(shot, this.world);
+    this.control = control.wouldHit; this.controlAt = control.contactAt;
     this.training = learning; this.mode = mode; this.result = null;
     this.rig.eng.reset(); this.previous = null; this.steps = []; this.shotTicks = 0;
     launch(this.world, shot); this.phase = 'flight';
@@ -67,10 +68,11 @@ export class PlaySession {
     const signal = this.rig.glance(observation.side, observation.loom);
     const x = new Float32Array(this.policy.D); x.set(signal.x); x.set(observation.extra, signal.x.length);
     const temp = Math.max(0.6, 1.4 - this.policy.episodes * 0.0005);
+    const probabilities = this.policy.probs(x);
     const action = this.mode === 'still' ? 0 : this.mode === 'random' ? Math.floor(this.rig.rng() * 8) :
-      this.training ? this.policy.act(x, temp) : this.policy.probs(x).indexOf(Math.max(...this.policy.probs(x)));
+      this.training ? this.policy.act(x, temp) : probabilities.indexOf(Math.max(...probabilities));
     const cost = this.world.act(action);
-    this.steps.push({ x, a: action, r: cost, temp });
+    this.steps.push({ x, a: action, r: cost, temp, t: this.world.time });
     this.signal = { id: ++this.observation, gf: signal.gf, left: signal.drive.l, right: signal.drive.r, action, urgency: signal.urgency };
     if (this.capture) this.signal.snap = this.rig.snapshot();
   }
@@ -97,9 +99,12 @@ export class PlaySession {
   finish() {
     const hit = this.world.hit, kind = hit ? 'hit' : this.control ? 'dodge' : 'miss';
     const reward = hit ? -3 : this.control ? 3 : 0;
-    if (this.training && this.steps.length >= 2) { this.steps.at(-1).r += reward; this.policy.learn(this.steps); }
+    // Assign successful-escape credit near the avoided contact, not seconds later.
+    // The counterfactual is a training label after the outcome, never a policy input.
+    const credit = !hit && this.controlAt != null ? this.steps.filter(s => s.t <= this.controlAt + OBSERVE_TICKS * WORLD_STEP) : this.steps;
+    if (this.training && credit.length >= 2) { credit.at(-1).r += reward; this.policy.learn(credit); }
     this.stats.throws++; this.stats[kind === 'hit' ? 'hits' : kind === 'dodge' ? 'dodges' : 'misses']++;
-    this.result = { kind, reward, control: this.control, learned: this.training && this.steps.length >= 2 };
+    this.result = { kind, reward, control: this.control, learned: this.training && credit.length >= 2 };
     this.phase = 'result'; this.cooldown = Math.round(1.3 / WORLD_STEP);
   }
   state() {
