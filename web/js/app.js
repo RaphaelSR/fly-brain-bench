@@ -1,5 +1,6 @@
 import { fetchGz, decodeConnectome, decodePositions, decodeLabels } from './data.js';
 import { BrainView } from './gl.js';
+import { IntroGate } from './intro.js';
 import { FlyView } from './fly.js';
 import { Decoder, BEHAVIOURS } from './decoder.js';
 import { PRESETS, TAG_ORDER, resolvePreset } from './presets.js';
@@ -15,7 +16,7 @@ const NT_COLOR = {
 const CHAN_ORDER = ['walk', 'turn', 'stop', 'backward', 'escape', 'wing', 'landing', 'proboscis'];
 
 const S = {
-  meta: null, labels: null, view: null, fly: null, dec: null, channels: null,
+  meta: null, labels: null, view: null, fly: null, dec: null, channels: null, entered: false, intro: null,
   worker: null, selected: [], running: false, t: 0, nActive: 0, totalSpikes: 0,
   spikeAccum: null, winCount: null, hz: null, lastReadout: 0, ready: false,
   selKey: null, selVars: null, pickedBehaviour: 'walk', drive: null,
@@ -47,6 +48,11 @@ function rememberUrl() {
 }
 
 async function boot() {
+  S.intro = new IntroGate(() => {
+    S.entered = true;
+    S.view.autoRotate = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setRunning(!matchMedia('(prefers-reduced-motion: reduce)').matches);
+  });
   const qs = urlState();
   setLocale(LOCALES[qs.get('lang')] ? qs.get('lang') : detectLocale());
   buildLangPickers();
@@ -81,6 +87,13 @@ async function boot() {
     setStatus('boot.renderer', 0.95);
     await yieldFrame();
     S.view = new BrainView($('#well'), pos, labels.nt, radius);
+    const provenance = await fetch('data/position-provenance.json').then(r => {
+      if (!r.ok) throw new Error('Position provenance unavailable');
+      return r.json();
+    });
+    if (provenance.n_neurons !== N) throw new Error('Position provenance mismatch');
+    S.view.hideMissingPositions(provenance.missing);
+    S.view.autoRotate = false;
     S.view.setNTColors(meta.dicts.top_nt.map(n => NT_COLOR[n] || NT_COLOR.unknown));
     try { S.fly = new FlyView($('#flywell')); } catch (e) {
       $('#viewStatus').textContent = t('scene.unavailable');
@@ -114,8 +127,7 @@ function onWorker(ev) {
   const m = ev.data;
   if (m.type === 'ready') {
     S.ready = true;
-    $('#boot').classList.add('done');
-    setTimeout(() => $('#boot').remove(), 700);
+    S.intro.ready();
     buildRegions(S.flyPos);
     const qs = urlState();
     S.showRegions = qs.get('regions') === '1';
@@ -331,6 +343,7 @@ function applyStimulus(idx, keys, vars) {
 }
 
 function setRunning(on) {
+  on = on && S.entered;
   S.running = on;
   S.worker.postMessage({ cmd: 'run', on });
   $('#btnPlay').textContent = t(on ? 'tp.pause' : 'tp.run');
@@ -402,7 +415,7 @@ function buildRegions(pos) {
   S.regions = REGIONS.map(r => {
     let n = 0, x = 0, y = 0, z = 0;
     for (let i = 0; i < L.cellType.length; i++) {
-      if (!r.pick(d, L, i)) continue;
+      if (!S.view.valid[i] || !r.pick(d, L, i)) continue;
       x += pos[i*3]; y += pos[i*3+1]; z += pos[i*3+2]; n++;
     }
     return n ? { key: r.key, n, p: [x/n, y/n, z/n] } : null;

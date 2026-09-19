@@ -1,6 +1,12 @@
 /* Layers on top of the bench stylesheet: same palette, a different room. */
 body.defend{display:grid; grid-template-rows:auto 1fr auto; height:100%; overflow:hidden}
 body.defend main{display:grid; grid-template-columns:minmax(0,1fr) 318px; min-height:0}
+.live-mode [data-replay-only], body:not(.live-mode) [data-live-only]{display:none!important}
+.live-mode .scene-title{color:var(--hot)}
+.live-mode .pane:before,.live-mode .pane:after{content:"";position:absolute;left:0;right:0;height:18px;background:#101516;z-index:1;pointer-events:none}
+.live-mode .pane:before{top:0}.live-mode .pane:after{bottom:0}
+.live-mode .pane figcaption{top:30px;z-index:2}
+.live-mode .card .info{display:none}
 
 /* ---------- stage ---------- */
 .stage{position:relative; background:var(--well); min-width:0; display:flex; flex-direction:column}
@@ -14,24 +20,61 @@ body.defend main{display:grid; grid-template-columns:minmax(0,1fr) 318px; min-he
 /* one canvas can hold one kind of context, so the flat view and the 3D view are
    separate canvases and only one of them is in the layout at a time */
 .pane canvas[hidden]{display:none}
-.pane figcaption{position:absolute; top:74px; left:22px; right:14px; display:flex;
-  align-items:baseline; gap:10px; pointer-events:none; font-size:12px}
+.pane figcaption{position:absolute; top:28px; left:22px; display:flex;
+  align-items:baseline; gap:10px; pointer-events:none; font-size:12px;
+  padding:7px 10px;border-radius:5px;background:#101c22d9;backdrop-filter:blur(8px)}
 .pane figcaption b{font-weight:500; color:var(--ink2); letter-spacing:.02em}
 .pane figcaption span{font-family:var(--fd); font-size:15px}
 .pane figcaption span.hit{color:var(--danger)}
 .pane figcaption span.safe{color:#59C78C}
 /* the second pane is the reference, so it reads as quieter than the one you chose */
 .arenas.split #paneB{opacity:.82}
-.arenas.split .pane figcaption{top:74px}
-.stage .scene-toolbar{z-index:3}
-.stage .scene-title{font-size:17px}
+.arenas.split .pane figcaption{top:28px}
+.stage .scene-toolbar{position:relative;inset:auto;flex:none;z-index:3;background:var(--panel);padding:10px 18px;flex-wrap:wrap;pointer-events:auto}
+.stage .scene-title{font-size:14px}
 .stage .view-status{z-index:4}
+.experiment-controls{display:flex;align-items:center;gap:14px;padding:10px 18px;flex-wrap:wrap;
+  background:var(--panel);border-bottom:1px solid var(--line);font-size:12px;color:var(--ink2);z-index:3}
+.experiment-controls label{display:flex;align-items:center;gap:8px}
+.experiment-controls select{max-width:180px;background:var(--well);color:var(--ink);border:1px solid var(--line2);border-radius:5px;padding:7px}
+.experiment-controls .replay-note{margin-left:auto;font-size:11px;color:var(--ink3)}
+#playbackTime{font-size:11px;min-width:95px}
+.playback-note{flex-basis:100%;margin:0;font-size:11px;color:var(--ink3)}
+.auto-next{display:flex;align-items:center;gap:6px;color:var(--ink2);font-size:12px}
+.auto-next input{accent-color:var(--ach)}
+.transport .slider input{width:96px;min-width:55px}
+.transport .slider .mono{min-width:35px}
+input[type=range]:focus-visible{outline:2px solid var(--ach);outline-offset:5px}
 body.defend .rail{padding-top:0}
+body.defend main{grid-template-columns:minmax(0,1fr) clamp(340px,32vw,460px)}
+.brain-card{flex:none}
+.brain-card h2{color:var(--ink2);margin-bottom:0}
+.brain-card .brain-count{font-size:11px;color:var(--ink2);line-height:1.5}
+.brain-tools{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:11px;color:var(--ink2)}
+.brain-tools label{display:flex;align-items:center;gap:6px}
+.brain-tools select{max-width:145px;background:var(--well);color:var(--ink);border:1px solid var(--line2);padding:7px;border-radius:5px}
+.brain-tools button{font-size:11px;padding:6px 9px}
+.brain-viewport{position:relative;height:clamp(240px,32vh,340px);background:var(--well);border:1px solid var(--line);border-radius:8px;overflow:hidden;flex:none}
+.brain-viewport #brain{position:absolute;inset:0;height:100%;width:100%;min-height:0;touch-action:none}
+#brainOverlay,#brainLabels{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#brainLabels span{position:absolute;top:0;left:0;font:10px var(--fm);color:var(--hot);background:#101a1edb;padding:3px 5px;border-radius:4px;translate:-50% -50%;white-space:nowrap}
+.brain-card .brain-legend{font-size:10px;color:var(--ink2)}
+.brain-nt{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:10px;color:var(--ink2)}
+.brain-nt span{display:flex;align-items:center;gap:5px}
+.brain-nt i{height:6px;width:6px;border-radius:50%;display:inline-block}
+.brain-card .brain-detail{font-size:12px;color:var(--hot);min-height:36px}
+.brain-method{font-size:11px;color:var(--ink2);line-height:1.6}
+.brain-method summary{cursor:pointer;color:var(--ach)}
+.brain-method p{font-size:11px;margin:8px 0}
+.brain-card.expanded{position:fixed;inset:12px;z-index:40;background:var(--panel);overflow:auto;box-shadow:0 0 0 30px #070c0fcc}
+.brain-card.expanded .brain-viewport{height:calc(100svh - 315px);min-height:250px}
+.boot-card{padding:30px 0}
 
 .stage-hud{position:absolute; left:0; right:0; bottom:0; display:flex; gap:20px;
   padding:9px 16px; font-size:11px; color:var(--ink3); pointer-events:none;
   background:linear-gradient(to top,rgba(7,12,15,.92),transparent)}
 .stage-hud span:last-child{margin-left:auto}
+.live-mode .stage-hud{z-index:2;color:var(--ink2);background:#101c22d9}
 body.shuffled .stage-hud span:last-child{color:var(--danger)}
 
 /* ---------- rail ---------- */
@@ -104,12 +147,13 @@ input[type=range]::-moz-range-thumb{width:13px; height:13px; border-radius:50%;
   body.defend{display:flex;flex-direction:column;overflow:auto;height:auto;min-height:100%}
   body.defend main{display:contents}
   body.defend .top{order:0}
-  body.defend .stage{order:1;flex:none;height:clamp(380px,56svh,520px)}
+  body.defend .stage{order:1;flex:none;height:clamp(480px,68svh,620px)}
   body.defend .stage:has(.arenas.split){height:700px}
   body.defend .transport{order:2}
   body.defend .rail{order:3}
   .rail{border-left:0; border-top:1px solid var(--line)}
   .top-stats{display:none}
+  .live-mode .top-stats{display:flex;flex-wrap:wrap;order:5;flex-basis:100%;justify-content:space-between;gap:8px;font-size:10px}
   .arenas.split{grid-template-columns:1fr; grid-template-rows:1fr 1fr}
   .transport{gap:10px}
   .scrub{order:5; flex-basis:100%}
@@ -118,4 +162,9 @@ input[type=range]::-moz-range-thumb{width:13px; height:13px; border-radius:50%;
   .stage-hud{flex-wrap:wrap;gap:4px 12px;font-size:10px}
   .arenas.split #paneB figcaption{top:12px}
   .transport button{min-height:40px}
+  .experiment-controls{padding:8px 12px;gap:8px}
+  .experiment-controls .replay-note{flex-basis:100%;margin:0;font-size:10px}
+  .transport .slider{flex:1 1 100%;justify-content:space-between;min-height:34px}
+  .transport .slider input{flex:1;max-width:180px}
+  .auto-next{min-height:40px}
 }

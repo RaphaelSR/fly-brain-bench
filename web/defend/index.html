@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Escape Reflex</title>
-<meta name="description" content="Something is coming. Watch a real fruit fly connectome learn to get out of the way — and watch a rewired one fail to.">
+<title>Fly Brain · Survival Arena</title>
+<meta name="description" content="A fly, a flying flip-flop, and an open courtyard. Train an escape policy on real connectome activity, with physical collisions and cinematic playback.">
 <meta name="theme-color" content="#0B1114">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,14 +14,17 @@
 </head>
 <body class="defend">
 
-<div id="boot">
+<div id="boot" role="dialog" aria-modal="true" aria-labelledby="introTitle">
   <div class="boot-card">
     <p class="eyebrow">Drosophila melanogaster &middot; FlyWire v783</p>
-    <h1 data-i18n="defend.boot.h1">Something is coming.</h1>
+    <h1 id="introTitle" data-i18n="defend.boot.h1">Something is coming.</h1>
     <p class="sub" data-i18n="defend.boot.sub">At first she has no idea what to do about it.</p>
     <div class="track"><div id="loadBar"></div></div>
     <p id="loadLabel" class="mono"></p>
-    <p id="loadDetail" class="fine" data-i18n="defend.boot.detail">A recorded run: six hundred episodes on her real escape circuit.</p>
+    <p id="loadDetail" class="fine" data-i18n="live.boot">Loading the escape circuit and the physical arena.</p>
+    <p class="intro-explain" data-i18n="intro.arenaExplain"></p>
+    <p id="introHint" class="intro-hint" role="status" data-i18n="intro.loading"></p>
+    <button id="btnEnter" class="intro-enter" disabled data-i18n="intro.arena">Enter the arena</button>
   </div>
 </div>
 
@@ -34,9 +37,9 @@
     </div>
   </div>
   <div class="top-stats mono">
-    <span><b id="mEp">0</b> <i data-i18n="defend.stat.eps">episodes trained</i></span>
-    <span><b id="mScore">0%</b> <i data-i18n="defend.stat.escaped">escaped</i></span>
-    <span><b id="mAim">0%</b> <i data-i18n="defend.stat.aim">leaned the right way</i></span>
+    <span><b id="mEp">0</b> <i id="mEpLabel" data-i18n="defend.stat.eps">episodes trained</i></span>
+    <span><b id="mScore">0%</b> <i id="mScoreLabel" data-i18n="defend.stat.escaped">escaped</i></span>
+    <span><b id="mAim">0%</b> <i id="mAimLabel" data-i18n="defend.stat.aim">leaned the right way</i></span>
   </div>
   <select id="lang" class="lang" aria-label="Language"></select>
   <a class="ghost" href="../" data-i18n="defend.back">&larr; Bench</a>
@@ -50,6 +53,20 @@
       <button id="btnCamera" class="ghost" data-i18n="scene.reset">Reset camera</button>
     </div>
     <p id="viewStatus" class="view-status" role="status"></p>
+    <div class="experiment-controls">
+      <label><span data-i18n="live.mode">Mode</span>
+        <select id="experiment"><option value="live" data-i18n="live.title">Survival arena</option><option value="replay" data-i18n="live.recording">Recorded benchmark</option></select>
+      </label>
+      <label data-replay-only><span data-i18n="defend.object">Object</span>
+        <select id="object"><option value="slipper" data-i18n="defend.object.slipper">Flip-flop</option><option value="sphere" data-i18n="defend.object.sphere">Lab sphere</option></select>
+      </label>
+      <label data-live-only><span data-i18n="live.throwTime">Throw flight</span>
+        <select id="throwTime"><option value="1.2">1.2 s</option><option value="1.8" selected>1.8 s</option><option value="2.4">2.4 s</option></select>
+      </label>
+      <label data-live-only><input id="cinematic" type="checkbox" checked><span data-i18n="live.cinematic">Cinematic camera</span></label>
+      <span id="playbackTime" class="mono"></span>
+      <span id="sourceNote" class="replay-note"></span>
+    </div>
     <div class="arenas" id="arenas">
       <figure class="pane" id="paneA">
         <canvas class="v2d"></canvas>
@@ -76,6 +93,30 @@
   </section>
 
   <aside class="rail">
+    <section class="card brain-card" id="brainCard">
+      <h2><span data-i18n="brain.title">The escape circuit</span><span id="mActive" class="mono dim"></span></h2>
+      <p id="brainCount" class="brain-count mono"></p>
+      <div class="brain-tools">
+        <label><span data-i18n="brain.focus">Inspect</span><select id="brainFocus">
+          <option value="all" data-i18n="brain.all">Whole circuit</option>
+          <option value="LPLC2">LPLC2</option><option value="DNp01" selected>DNp01</option>
+          <option value="cell" disabled data-i18n="brain.selected">Selected neuron</option>
+        </select></label>
+        <button id="brainExpand" class="ghost" aria-expanded="false" aria-controls="brainCard" data-i18n="brain.expand">Expand</button>
+        <button id="brainReset" class="ghost" data-i18n="scene.reset">Reset camera</button>
+      </div>
+      <div class="brain-viewport">
+        <canvas id="brain" role="img" aria-label="FlyWire escape circuit"></canvas>
+        <canvas id="brainOverlay" aria-hidden="true"></canvas>
+        <div id="brainLabels" aria-hidden="true"></div>
+      </div>
+      <div id="brainNT" class="brain-nt"></div>
+      <div class="brain-tools"><label><input id="brainEdges" type="checkbox" checked><span data-i18n="brain.connections">Connections in the data</span></label></div>
+      <p id="brainEdgeCount" class="brain-count"></p>
+      <p class="brain-legend" data-i18n="brain.legend"></p>
+      <p id="brainDetail" class="brain-detail" role="status"></p>
+      <details class="brain-method"><summary data-i18n="brain.method">What is real here?</summary><p data-i18n="brain.provenance"></p><p data-i18n="brain.activity"></p></details>
+    </section>
     <section class="card">
       <h2><span data-i18n="defend.card.arc">The arc</span><button class="info" data-info="arc">i</button></h2>
       <canvas id="arcChart"></canvas>
@@ -98,28 +139,33 @@
       </div>
     </section>
 
-    <section class="card grow">
-      <h2><span data-i18n="defend.card.brain">Her brain</span><button class="info" data-info="brain">i</button>
-        <span id="mActive" class="mono dim"></span></h2>
-      <canvas id="brain"></canvas>
-    </section>
   </aside>
 </main>
 
 <footer class="transport">
-  <button id="btnPlay" class="primary" aria-label="Play or pause">Pause</button>
-  <label class="scrub">
+  <button id="btnPlay" class="primary">Pause</button>
+  <button id="btnRestart" class="ghost" data-i18n="defend.btn.restart">Replay this test</button>
+  <label class="scrub" data-replay-only>
     <input id="scrub" type="range" min="0" max="25" step="1" value="0" aria-label="Training checkpoint">
     <span id="scrubOut" class="mono">episode 0</span>
   </label>
-  <button id="btnDim" class="ghost" aria-pressed="false">2D map</button>
-  <button id="btnFollow" class="ghost" aria-pressed="true" data-i18n="defend.btn.follow">Walk the arc</button>
-  <button id="btnCompare" class="ghost" aria-pressed="false">Compare with episode 0</button>
-  <button id="btnWiring" class="ghost" aria-pressed="false">Shuffle her wiring</button>
+  <button id="btnDim" data-replay-only class="ghost" aria-pressed="false">2D map</button>
+  <button id="btnFollow" data-replay-only class="ghost" aria-pressed="true" data-i18n="defend.btn.follow">Walk the arc</button>
+  <button id="btnCompare" data-replay-only class="ghost" aria-pressed="false">Compare with episode 0</button>
+  <button id="btnWiring" data-replay-only class="ghost" aria-pressed="false">Shuffle her wiring</button>
+  <button id="btnTrain" data-live-only class="ghost" data-i18n="live.train">Train 50 throws</button>
+  <button id="btnNew" data-live-only class="ghost" data-i18n="live.new">New session</button>
+  <label class="auto-next" data-live-only><input id="learning" type="checkbox" checked><span data-i18n="live.learning">Learn from attempts</span></label>
   <label class="slider"><span data-i18n="defend.speed">Speed</span>
-    <input id="speed" type="range" min="1" max="4" step="1" value="1">
+    <input id="speed" type="range" min="0.25" max="4" step="0.25" value="1">
     <span id="speedOut" class="mono">1&times;</span>
   </label>
+  <label class="slider"><span data-i18n="defend.duration">Replay length at 1×</span>
+    <input id="duration" type="range" min="4" max="20" step="1" value="8">
+    <span id="durationOut" class="mono">8 s</span>
+  </label>
+  <label class="auto-next"><input id="autoNext" type="checkbox" checked><span data-i18n="defend.autoNext">Auto advance</span></label>
+  <p id="timeNote" class="playback-note"></p>
 </footer>
 
 <div id="infoPop" role="dialog"><h4></h4><p></p></div>

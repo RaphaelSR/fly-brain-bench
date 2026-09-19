@@ -1,22 +1,16 @@
-/* Escape Reflex — a player over a recorded training run.
+/* Two distinct experiments share the renderer and neural inspector: new physical
+   survival trials computed in a worker, and the original fixed probe recording.
+   Their scores and protocols must not be presented as interchangeable. */
 
-   The page used to train in the tab, which was a mistake: an episode cost tens of
-   seconds because seven glances of a spiking network were competing with the
-   renderer for one thread, and nobody is going to watch six hundred of those. The
-   training happens in tools/train.mjs now, in about twenty-five seconds, and this
-   plays back what it wrote.
-
-   What is played back is a probe battery — the same twelve threats shown to the
-   frozen policy every twenty-five episodes. Two checkpoints are therefore directly
-   comparable, which is the whole point of the compare button: identical approach,
-   identical angle, and the only difference is what she has learned. */
-
-import { fetchGz, decodeLabels, decodePositions } from '../js/data.js';
+import { fetchGz, decodeLabels, decodePositions, decodeConnectome } from '../js/data.js';
+import { IntroGate } from '../js/intro.js';
+import { BrainInspector } from './brain-inspector.js';
 import { LOCALES, detectLocale, setLocale, getLocale, t, applyDom } from '../js/i18n.js';
 import { BrainView } from '../js/gl.js';
 import { Threat, ArenaView } from './arena.js';
 import { Arena3D } from './arena3d.js';
-import { Recording, Player, BEAT } from './replay.js';
+import { Recording, Player, BEAT, VERDICT } from './replay.js';
+import { LiveSession } from './live.js';
 
 const $ = s => document.querySelector(s);
 const NT_COLOUR = {
@@ -35,11 +29,19 @@ const S = {
   brain: null, geom: null, labels: null, meta: null,
   actTarget: null, nActive: 0,
   playing: !matchMedia('(prefers-reduced-motion: reduce)').matches, speed: 1, compare: false, follow: true,
-  last: 0, cp: 0,
+  last: 0, cp: 0, entered: false, inspector: null,
+  duration: 8, autoNext: true, object: 'slipper',
+  experiment: 'live', live: null, approach: 1.8, learning: true,
+  cinematic: !matchMedia('(prefers-reduced-motion: reduce)').matches,
 };
 
 /* ------------------------------------------------------------------ boot */
 async function boot() {
+  const intro = new IntroGate(() => {
+    S.entered = true;
+    S.last = performance.now();
+    requestLive('next');
+  });
   const step = (key, f) => {
     $('#loadLabel').dataset.i18n = key;
     $('#loadLabel').textContent = t(key);
@@ -58,20 +60,14 @@ async function boot() {
     step('defend.load.run', 0.65);
     S.recs.real = await Recording.load('data/replay.json.gz');
     S.rec = S.recs.real;
+    const [connBytes, signs] = await Promise.all([fetchGz('data/conn.bin.gz'), fetchGz('data/sign.bin.gz')]);
+    const conn = decodeConnectome(connBytes, N, meta.n_edges, signs);
     step('defend.load.ready', 1);
 
     S.brain = new BrainView($('#brain'), S.geom.pos, S.labels.nt, S.geom.radius);
     S.brain.setNTColors(meta.dicts.top_nt.map(n => NT_COLOUR[n] || NT_COLOUR.unknown));
-    /* The escape subcircuit is 6,203 cells out of 138,639, so the resting cloud is
-       sparse where the whole brain is dense — it needs a brighter floor and a
-       closer camera than the bench does, or the anatomy the firing sits inside is
-       not visible at all. */
-    S.brain.baseAlpha = 0.46;
-    S.brain.pitch = 0.26;
-    S.brain.fitMargin = 1.04;
-    S.brain.bloom = 1.15;              // a sparse cloud can carry more glow
-    S.brain.bloomThreshold = 0.38;
     S.actTarget = new Float32Array(N);
+    S.inspector = new BrainInspector(S.brain, meta, S.labels, conn);
 
     S.views['2d'] = [new ArenaView($('#paneA canvas.v2d')), new ArenaView($('#paneB canvas.v2d'))];
     S.A = new Player(S.rec);
@@ -80,9 +76,9 @@ async function boot() {
 
     wire();
     switchMode('3d');
-    paintArc();
-    $('#boot').classList.add('done');
-    setTimeout(() => $('#boot').remove(), 600);
+    selectExperiment('live');
+    paintLiveStats();
+    intro.ready();
     S.last = performance.now();
     schedule();
   } catch (err) {
@@ -161,7 +157,11 @@ function loop(now) {
      surfaced as an IndexSizeError from canvas and a dead render loop. */
   const dt = Math.max(0, Math.min((now - S.last) / 1000, 0.05));
   S.last = now;
-  const k = S.playing ? dt * S.speed : 0;
+  if (!S.entered) { schedule(); return; }
+  if (S.experiment === 'live') { loopLive(dt); schedule(); return; }
+  const length = S.rec.glances * BEAT + VERDICT;
+  const k = S.playing ? dt * S.speed * length / S.duration : 0;
+  let advance = false;
 
   S.A.update(k, {
     onGlance: (gi, s) => {
@@ -177,7 +177,11 @@ function loop(now) {
         S.threatA.step = S.rec.glances;
         markVerdict($('#paneA'), run.ok);
         if (!run.ok) view(0).impact(...impactPoint(view(0)));
-      } else nextRun();
+      } else if (S.autoNext) advance = true;
+      else {
+        S.playing = false;
+        $('#btnPlay').textContent = t('defend.btn.play');
+      }
     },
   });
   if (S.compare) {
@@ -193,12 +197,17 @@ function loop(now) {
       },
     });
   }
+  if (advance) nextRun();
+
+  const elapsed = S.A.done ? S.rec.glances * BEAT + S.A.t : S.A.t;
+  $('#playbackTime').textContent = `${(elapsed / length * S.duration / S.speed).toFixed(1)} / ${(S.duration / S.speed).toFixed(1)} s`;
 
   if (!document.hidden) {
-    drawPane(view(0), S.A, S.threatA, k);
-    if (S.compare) drawPane(view(1), S.B, S.threatB, k);
-    if (S.playing) decayBrain(dt);
+    drawPane(view(0), S.A, S.threatA, advance ? 0 : k);
+    if (S.compare) drawPane(view(1), S.B, S.threatB, advance ? 0 : k);
+    if (S.playing) decayBrain(k);
     S.brain.draw(dt);
+    S.inspector.draw();
   }
   schedule();
 }
@@ -208,7 +217,9 @@ function drawPane(view, player, threat, dt) {
   threat.interpolate(dt);
   view.draw({ threat, drive: player.drive, lean: player.body.lean,
     airborne: player.body.airborne, leapUsed: player.body.leapUsed,
-    leapAge: player.leapAge, leapLean: player.leapLean, anticipation: player.anticipation }, dt);
+    leapAge: player.leapAge, leapLean: player.leapLean, anticipation: player.anticipation,
+    progress: player.approach, done: player.done, ok: !!player.run?.ok,
+    outcomeAge: player.done ? player.t : 0 }, dt);
 }
 function impactPoint(v) {
   return [v.c.clientWidth / 2, v.c.clientHeight / 2];
@@ -231,6 +242,9 @@ function schedule() {
 function lightBrain(gi) {
   const run = S.A.run;
   const snap = run?.snaps?.[gi];
+  lightSnapshot(snap, run?.steps?.[gi]);
+}
+function lightSnapshot(snap, step) {
   S.actTarget.fill(0);
   S.nActive = 0;
   if (snap) {
@@ -242,7 +256,6 @@ function lightBrain(gi) {
   S.brain.uploadAct();
 
   // mark the eye that is being driven, so the input is visible as well as the response
-  const step = run?.steps?.[gi];
   const sel = S.brain.sel;
   sel.fill(0);
   if (step) {
@@ -255,7 +268,7 @@ function lightBrain(gi) {
 }
 function decayBrain(dt) {
   const act = S.brain.act;
-  const f = Math.pow(0.12, dt * (S.playing ? S.speed : 1) / BEAT);
+  const f = Math.pow(0.12, dt / BEAT);
   let changed = false;
   for (let i = 0; i < act.length; i++) {
     if (act[i] > 0.002) { act[i] *= f; changed = true; }
@@ -344,6 +357,13 @@ function paintArc() {
 /* ----------------------------------------------------------------- wiring */
 function wire() {
   $('#btnPlay').addEventListener('click', () => {
+    if (S.experiment === 'live') {
+      if (S.live?.finished) restartLive();
+      S.playing = !S.playing;
+      $('#btnPlay').textContent = t(S.playing ? 'defend.btn.pause' : 'defend.btn.play');
+      return;
+    }
+    if (S.A.finished) armRun(S.A.angle);
     S.playing = !S.playing;
     $('#btnPlay').textContent = t(S.playing ? 'defend.btn.pause' : 'defend.btn.play');
   });
@@ -353,6 +373,31 @@ function wire() {
     S.speed = +e.target.value;
     $('#speedOut').textContent = `${S.speed}×`;
   });
+  $('#duration').addEventListener('input', e => {
+    S.duration = +e.target.value;
+    $('#durationOut').textContent = `${S.duration} s`;
+  });
+  $('#autoNext').addEventListener('change', e => { S.autoNext = e.target.checked; });
+  $('#btnRestart').addEventListener('click', () => {
+    if (S.experiment === 'live') restartLive();
+    else armRun(S.A.angle);
+    S.playing = true;
+    $('#btnPlay').textContent = t('defend.btn.pause');
+  });
+  $('#object').addEventListener('change', e => {
+    S.object = e.target.value;
+    for (const v of S.views['3d']) v?.setObject(S.object);
+  });
+  $('#experiment').addEventListener('change', e => selectExperiment(e.target.value));
+  $('#throwTime').addEventListener('change', e => { S.approach = +e.target.value; });
+  $('#learning').addEventListener('change', e => { S.learning = e.target.checked; });
+  $('#cinematic').checked = S.cinematic;
+  $('#cinematic').addEventListener('change', e => {
+    S.cinematic = e.target.checked;
+    if (S.cinematic) S.views['3d'][0]?.view.resetCamera();
+  });
+  $('#btnTrain').addEventListener('click', () => requestLive('train'));
+  $('#btnNew').addEventListener('click', () => requestLive('reset'));
   $('#btnDim').addEventListener('click', () => switchMode(S.mode === '2d' ? '3d' : '2d'));
   $('#btnCamera').addEventListener('click', () => {
     for (const v of S.views['3d']) v?.view.resetCamera();
@@ -372,6 +417,7 @@ function wire() {
   });
   $('#btnWiring').addEventListener('click', swapWiring);
   $('#arcChart').addEventListener('pointerdown', e => {
+    if (S.experiment === 'live') return;
     const move = ev => {
       const r = $('#arcChart').getBoundingClientRect();
       const f = (ev.clientX - r.left) / r.width;
@@ -381,7 +427,7 @@ function wire() {
     const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); };
     addEventListener('pointermove', move); addEventListener('pointerup', up);
   });
-  addEventListener('resize', paintArc);
+  addEventListener('resize', () => S.experiment === 'live' ? paintLiveStats() : paintArc());
   const sel = $('#lang');
   sel.innerHTML = Object.keys(LOCALES).map(c => `<option value="${c}">${LOCALES[c]['lang.name']}</option>`).join('');
   sel.value = getLocale();
@@ -396,6 +442,7 @@ function ensure3D(index) {
   if (S.views['3d'][index]) return true;
   try {
     S.views['3d'][index] = new Arena3D($(index ? '#paneB canvas.v3d' : '#paneA canvas.v3d'));
+    S.views['3d'][index].setObject(S.object);
     return true;
   } catch (err) {
     $('#viewStatus').textContent = t('scene.unavailable');
@@ -413,6 +460,7 @@ function switchMode(to) {
   $('#btnDim').setAttribute('aria-pressed', String(three));
   $('#btnCamera').hidden = !three;
   $('#cameraHint').hidden = !three;
+  $('#object').disabled = !three;
   armRun(S.A.angle);
 }
 
@@ -439,6 +487,7 @@ async function swapWiring() {
     btn.setAttribute('aria-pressed', String(shuffled));
     $('#hudWiring').textContent = t(shuffled ? 'defend.wiring.shuf' : 'defend.wiring.real');
     document.body.classList.toggle('shuffled', shuffled);
+    S.inspector.setWiring(S.experiment === 'replay' && shuffled);
   }
 }
 
@@ -466,6 +515,7 @@ function bindInfo() {
     if (e.key === 'Escape') $('#infoPop').classList.remove('open');
     if (e.target.closest('button, input, select, textarea, [contenteditable]')) return;
     if (e.key === ' ') { e.preventDefault(); $('#btnPlay').click(); }
+    if (S.experiment === 'live') return;
     if (e.key === 'ArrowLeft') setCheckpoint(S.cp - 1, true);
     if (e.key === 'ArrowRight') setCheckpoint(S.cp + 1, true);
   });
@@ -482,6 +532,137 @@ function relabel() {
   for (const v of allViews()) v.labels = { contact: t('defend.contact') };
   applyCheckpoint();
   armRun(S.A.angle);
+  experimentLabels();
+  S.inspector?.relabel();
+  if (S.experiment === 'live') {
+    if (S.live) S.live.observation = -1;
+    clearLiveSignal();
+    paintLiveStats();
+  }
+}
+
+function experimentLabels() {
+  const live = S.experiment === 'live';
+  $('.brand h1').textContent = t(live ? 'live.title' : 'app.scenario');
+  $('.scene-title').textContent = t(live ? 'live.sceneTitle' : 'scene.escape');
+  $('#sourceNote').textContent = t(live ? 'live.source' : 'defend.replay.note');
+  $('#timeNote').textContent = t(live ? 'live.timeNote' : 'defend.time.note');
+  $('#mEpLabel').textContent = t(live ? 'live.trained' : 'defend.stat.eps');
+  $('#mScoreLabel').textContent = t(live ? 'live.recent' : 'defend.stat.escaped');
+  $('#mAimLabel').textContent = t(live ? 'live.streak' : 'defend.stat.aim');
+  if (!live) $('#hudWiring').textContent = t(S.wiring === 'shuf' ? 'defend.wiring.shuf' : 'defend.wiring.real');
+}
+
+function clearLiveSignal() {
+  S.brain.act.fill(0);
+  lightSnapshot(null, null);
+  paintSignal({ gf: 0, l: 0, r: 0, u: 0 });
+  paintProbs([0.25, 0.25, 0.25, 0.25], -1);
+}
+
+function restartLive() {
+  if (!S.live?.episode || S.live.busy) return;
+  S.live.restart();
+  S.views['3d'][0].reset();
+  clearLiveSignal();
+  paintLiveStats();
+}
+
+function selectExperiment(mode) {
+  if (mode === 'live' && !ensure3D(0)) { $('#experiment').value = 'replay'; mode = 'replay'; }
+  S.experiment = mode;
+  S.inspector.setWiring(mode === 'replay' && S.wiring === 'shuf');
+  document.body.classList.toggle('live-mode', mode === 'live');
+  document.body.classList.toggle('shuffled', mode === 'replay' && S.wiring === 'shuf');
+  S.compare = false; $('#paneB').hidden = true; $('#arenas').classList.remove('split');
+  $('#btnCompare').setAttribute('aria-pressed', 'false');
+  $('#btnCompare').textContent = t('defend.btn.compare');
+  if (mode === 'live') {
+    switchMode('3d');
+    if (!S.live) S.live = new LiveSession(n => { $('#viewStatus').textContent = t('live.progress', { n }); });
+    S.live.observation = -1;
+    clearLiveSignal();
+    if (!S.live.episode && S.entered) requestLive('next');
+    else paintLiveStats();
+  } else {
+    $('#viewStatus').textContent = '';
+    for (const v of S.views['3d']) v?.setObject(S.object);
+    setCheckpoint(S.cp);
+  }
+  experimentLabels();
+}
+
+async function requestLive(type) {
+  if (!S.live || S.live.busy) return;
+  $('#viewStatus').textContent = t(type === 'train' ? 'live.progress' : 'live.loading', { n: 0 });
+  for (const id of ['btnTrain', 'btnNew', 'btnRestart']) $(`#${id}`).disabled = true;
+  try {
+    await S.live.request(type, { approach: S.approach, training: S.learning });
+    if (S.experiment !== 'live') return;
+    S.views['3d'][0].reset();
+    clearLiveSignal();
+    $('#viewStatus').textContent = '';
+    $('#paneA [data-verdict]').textContent = '';
+    $('#paneA [data-verdict]').className = '';
+    paintLiveStats();
+  } catch (error) {
+    if (S.experiment === 'live') {
+      S.playing = false;
+      $('#btnPlay').textContent = t('defend.btn.play');
+      $('#viewStatus').textContent = `${t('live.error')} ${error.message}`;
+    }
+  } finally {
+    for (const id of ['btnTrain', 'btnNew', 'btnRestart']) $(`#${id}`).disabled = false;
+  }
+}
+
+function loopLive(dt) {
+  const live = S.live, ep = live?.episode;
+  if (!ep) return;
+  const k = S.playing && !live.busy ? dt * S.speed * ep.duration / S.duration : 0;
+  const wasFinished = live.finished;
+  live.time = Math.min(ep.duration, live.time + k);
+  while (live.observation + 1 < ep.observations.length && ep.observations[live.observation + 1].t <= live.time) {
+    const s = ep.observations[++live.observation];
+    lightSnapshot(s.snap, s); paintSignal(s); paintProbs(s.p, s.a);
+  }
+  const frame = live.frame;
+  if (frame.hit || live.finished) markVerdict($('#paneA'), !frame.hit);
+  else { $('#paneA [data-verdict]').textContent = ''; }
+  $('#paneA [data-ep]').textContent = t('live.attempt', { n: ep.trials });
+  $('#hudAngle').textContent = t('live.arena');
+  $('#hudGlance').textContent = t(frame.hit ? 'live.hit' : frame.air > 0.1 ? 'live.flying' : live.time < 0.55 ? 'live.throwing' : 'live.grounded');
+  $('#hudWiring').textContent = t(ep.training ? 'live.training' : 'live.evaluation');
+  $('#playbackTime').textContent = `${(live.time / ep.duration * S.duration / S.speed).toFixed(1)} / ${(S.duration / S.speed).toFixed(1)} s`;
+  if (!document.hidden) {
+    S.views['3d'][0].drawLive(frame, ep, k, S.cinematic);
+    if (k > 0) decayBrain(k);
+    S.brain.draw(dt);
+    S.inspector.draw();
+  }
+  if (!wasFinished && live.finished) {
+    paintLiveStats();
+    if (!S.autoNext) { S.playing = false; $('#btnPlay').textContent = t('defend.btn.play'); }
+  }
+  if (live.finished && S.playing && S.autoNext && !live.busy) requestLive('next');
+}
+
+function paintLiveStats() {
+  const ep = S.live?.episode;
+  const stats = ep ? (S.live.finished ? ep : ep.before) : { trained: 0, streak: 0, best: 0, deaths: 0, history: [] };
+  const recent = stats.history.slice(-50);
+  $('#mEp').textContent = stats.trained;
+  $('#mScore').textContent = recent.length ? `${Math.round(recent.reduce((a, b) => a + b, 0) / recent.length * 100)}%` : '—';
+  $('#mAim').textContent = stats.streak;
+  $('#arcNote').textContent = t('live.summary', { best: stats.best, deaths: stats.deaths });
+  const c = $('#arcChart'), w = c.clientWidth, h = c.clientHeight || 96;
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+  const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+  recent.forEach((ok, i) => {
+    ctx.fillStyle = ok ? '#59c78c' : '#e8654b';
+    ctx.fillRect(i * w / Math.max(50, recent.length), ok ? 12 : h / 2, Math.max(2, w / 50 - 2), h / 2 - 14);
+  });
 }
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

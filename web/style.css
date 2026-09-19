@@ -139,6 +139,13 @@ main > *{min-width:0}
   display:grid; place-items:center; overflow-y:auto; transition:opacity .6s;
 }
 #boot.done{opacity:0; pointer-events:none}
+#boot[hidden]{display:none}
+#boot:focus{outline:none}
+.intro-enter{margin-top:14px;background:var(--ach);color:#1a1206;padding:12px 22px;border-radius:8px;font-weight:600;min-height:46px}
+.intro-enter:disabled{opacity:.4;cursor:wait}
+.intro-enter:not(:disabled):hover{background:var(--hot)}
+.intro-hint{font-size:13px;color:var(--ink2);margin:16px 0 0}
+.intro-explain{font-size:14px;line-height:1.7;color:var(--ink2);margin:24px 0}
 .boot-inner{width:min(1080px,100%); padding:40px 28px; display:grid; gap:30px}
 .boot-head h1{font-size:clamp(28px,4.4vw,46px); line-height:1.08; letter-spacing:-.025em; margin-top:10px}
 .primer{display:grid; grid-template-columns:repeat(auto-fit,minmax(258px,1fr)); gap:14px}
