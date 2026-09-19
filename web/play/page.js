@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three/three.module.min.js';
-import { Arena3D } from '../defend/arena3d.js?v=patio2';
+import { Arena3D } from '../defend/arena3d.js?v=grounded1';
 import { createHomeCourtyard } from './home-scene.js';
 import { ThrowGesture } from './gesture.js';
 import { bindSceneLayout } from '../defend/scene-layout.js';
@@ -8,18 +8,19 @@ import { BrainInspector } from '../defend/brain-inspector.js?v=play1';
 import { fetchGz, decodeLabels, decodePositions, decodeConnectome } from '../js/data.js';
 import { detectLocale, setLocale, getLocale, applyDom } from '../js/i18n.js';
 import { sampleEpisode } from '../defend/live.js?v=patio2';
-import { PlayStore, validateSave, LEGACY_KEY, transferLegacy } from './storage.js?v=flight3';
+import { PlayStore, validateSave, LEGACY_KEY, transferLegacy } from './storage.js?v=grounded1';
 import { Policy } from '../defend/policy.js';
-import { PROTOCOL, packPolicy, DIMENSIONS, ACTION_COUNT } from './core.js?v=flight3';
-import { makeShot, traceShot } from './physics.js?v=flight3';
-import { COPY } from './copy.js?v=flight3';
-import { formatReport } from './report.js?v=flight3';
+import { PROTOCOL, packPolicy, DIMENSIONS, ACTION_COUNT } from './core.js?v=grounded1';
+import { makeShot, traceShot } from './physics.js?v=grounded1';
+import { COPY } from './copy.js?v=grounded1';
+import { formatReport } from './report.js?v=grounded1';
+import { selectBrain, aimElevation, aimingFraming } from './aiming.js?v=grounded1';
 
 const $ = id => document.getElementById(id), c = key => COPY[getLocale()][key];
 const label = (id, value) => { const el = $(id), text = String(value); if (el.textContent !== text) el.textContent = text; };
 const seed = () => crypto.getRandomValues(new Uint32Array(1))[0];
 setLocale(new URLSearchParams(location.search).get('lang') || detectLocale());
-const brainMode = new URLSearchParams(location.search).get('brain') === 'whole' ? 'whole' : 'escape';
+const brainMode = selectBrain(new URLSearchParams(location.search).get('brain'));
 const dataPath = brainMode === 'whole' ? '../data/' : '../defend/data/';
 let state, previous, received = 0, running = false, entered = false, busy = false, throwing = false, restoring = false;
 let renderer, brain, inspector, store, saved, pretrained, hasSaved = false, saveFailed = false;
@@ -27,7 +28,7 @@ let trace, ring, lastPhase, lastSignal = -1, recording = [], lastReplay = null, 
 let propSignature = '', dragging = false;
 const gesture = new ThrowGesture();
 let saveQueue = Promise.resolve(), sequence = 0, lastTime = 0, lastStep = 0;
-const worker = new Worker(new URL('./play.worker.js?v=flight3', import.meta.url), { type: 'module' });
+const worker = new Worker(new URL('./play.worker.js?v=grounded1', import.meta.url), { type: 'module' });
 const requests = new Map();
 worker.onmessage = ({ data }) => {
   const pending = requests.get(data.id);
@@ -70,7 +71,7 @@ function accept(response, initial = false) {
     if (state.phase === 'aim') updateAim();
     lastPhase = state.phase;
   }
-  const signature = JSON.stringify([state.origin, state.frame.props?.map(p => [p.x.toFixed(3), p.z.toFixed(3), p.angle.toFixed(3)])]);
+  const signature = JSON.stringify([state.origin, state.home, state.frame.props?.map(p => [p.x.toFixed(3), p.z.toFixed(3), p.angle.toFixed(3)])]);
   if (state.phase === 'aim' && signature !== propSignature) { propSignature = signature; updateAim(); }
   if (brain && state.signal?.id !== lastSignal && state.signal?.snap) {
     lastSignal = state.signal.id;
@@ -183,11 +184,9 @@ function animate(now) {
     if (aiming) {
       const p = parameters(), shot = makeShot(state.origin, p.aim, p.power, p.elevation);
       frame = { ...frame, t: 0, projectile: { ...state.origin, yaw: shot.angle } };
-      episode = { launch: state.origin, angle: shot.angle, approach: 1.8, contactAt: null, frames: [] };
+      episode = { launch: state.origin, angle: shot.angle, grounded: true, approach: 1.8, contactAt: null, frames: [] };
     }
-    const framing = aiming || !$('cinematic').checked ? {
-      target: new THREE.Vector3(state.home.x + 0.5, 0.65 + frame.height * 0.5, state.home.z + 0.8), distance: 15.8, pitch: 0.5, yaw: 0.38,
-    } : null;
+    const framing = aiming || !$('cinematic').checked ? aimingFraming(frame, episode.launch, $('scene').clientWidth / $('scene').clientHeight) : null;
     const playing = replay ? !replay.paused : running;
     renderer.drawLive(frame, episode, playing ? dt : 0, $('cinematic').checked, framing);
     if (brain && !$('sceneDialog').open) { brain.draw(dt); inspector.draw(); }
@@ -205,12 +204,14 @@ function bindAim() {
   };
   const aim = e => {
     cast(e);
-    plane.constant = -state.frame.height;
+    const normal = new THREE.Vector3(state.origin.x - state.frame.x, 0, state.origin.z - state.frame.z).normalize();
+    plane.setFromNormalAndCoplanarPoint(normal, new THREE.Vector3(state.frame.x, state.frame.height + 0.52, state.frame.z));
     if (!ray.ray.intersectPlane(plane, point)) return;
     const bearing = Math.atan2(point.x - state.origin.x, point.z - state.origin.z);
     const base = Math.atan2(state.home.x - state.origin.x, state.home.z - state.origin.z);
     const delta = Math.atan2(Math.sin(bearing - base), Math.cos(bearing - base)) * 180 / Math.PI;
-    $('direction').value = Math.round(Math.max(-65, Math.min(65, delta))); updateAim();
+    $('direction').value = Math.round(Math.max(-65, Math.min(65, delta)));
+    $('elevation').value = Math.round(aimElevation(state.origin, point, Number($('power').value))); updateAim();
   };
   canvas.addEventListener('pointerdown', e => {
     if (e.button !== 0 || !allowed()) return;
@@ -308,7 +309,7 @@ try {
   ring.rotation.x = -Math.PI / 2; ring.renderOrder = 11; renderer.view.scene.add(ring); bindAim();
   let local = null;
   try { store = new PlayStore(localStorage, brainMode); local = store.load(); hasSaved = !!local; } catch { saveFailed = true; }
-  const response = await fetch('pretrained.json?v=flight3'); if (!response.ok) throw new Error('Missing pretrained policy');
+  const response = await fetch('pretrained.json?v=grounded1'); if (!response.ok) throw new Error('Missing pretrained policy');
   pretrained = await response.json(); validateSave(fresh(pretrained.policy));
   accept(await request('init', { seed: seed(), brain: brainMode, saved: local || fresh(pretrained.policy) }), true);
   const [m, l, p, b, s] = await Promise.all(['meta.json.gz', 'labels.bin.gz', 'pos.u16.bin.gz', 'conn.bin.gz', 'sign.bin.gz'].map(name => fetchGz(dataPath + name)));

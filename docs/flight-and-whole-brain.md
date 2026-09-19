@@ -5,8 +5,7 @@
 The playable mode now has lift and bounded acceleration, hover/braking, climbing,
 descending, lateral motion, takeoff and landing: twelve discrete actions in a
 continuous 120 Hz world. The ceiling is six **scene units**, not calibrated metres.
-The camera and thrower follow the fly during aiming; the projectile launch origin
-freezes on release. Props and their changing colliders remain part of the world.
+The hand stays at a fixed courtyard location and height; it no longer follows the fly. The aiming camera reframes at a fixed height, and touch aiming can launch upward (up to 70°). Props and their changing colliders remain part of the world.
 
 Two independent trainable softmax readouts control navigation and escape.
 Navigation chooses actions between throws rather than following a scripted walk
@@ -76,6 +75,9 @@ The wider graph was worse in this exploratory transfer test. More neurons do
 not automatically mean better decisions. One training initialization and a small
 seed set do not establish statistical superiority or biological validity.
 The old-weight comparison uses the **new body**, not the old published physics.
+These benchmark launch origins vary in height and position; they are not a
+new evaluation restricted to the now-grounded hand. This presentation/aiming
+update preserves learned weights and does not claim an intelligence improvement.
 
 Reproduce the shipped evaluation:
 
@@ -91,7 +93,7 @@ Node 20.14.0, macOS ARM64, five warm-ups and forty observations per profile.
 A 180-biological-ms neural observation had local median / p95 times of
 4.67 / 6.88 ms for the subcircuit and 17.83 / 21.62 ms for the wider graph.
 This measures neural computation, not total application memory, browser frame
-rate or mobile performance. The wider profile remains optional.
+rate or mobile performance. The wider profile is now the default at the owner’s request; the lightweight subcircuit remains selectable. This choice is not evidence of better performance.
 
 Saves are isolated as `fly-play-flight-v2-escape` and
 `fly-play-flight-v2-whole`. The old `fly-play-save-v1` is left untouched.

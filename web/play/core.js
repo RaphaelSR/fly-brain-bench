@@ -1,12 +1,13 @@
-import { PlayWorld, MAX_ALTITUDE, FLIGHT_ACTIONS } from './world.js?v=flight3';
+import { PlayWorld, MAX_ALTITUDE, FLIGHT_ACTIONS } from './world.js?v=grounded1';
 import { Policy } from '../defend/policy.js';
-import { makeShot, launch, traceShot, WORLD_STEP, SHOT_SECONDS } from './physics.js?v=flight3';
+import { makeShot, launch, traceShot, WORLD_STEP, SHOT_SECONDS } from './physics.js?v=grounded1';
 
 export const PROTOCOL = 'fly-play-flight-v2';
 export const EXTRA = 27;
 export const DIMENSIONS = 49 + EXTRA;
 export const ACTION_COUNT = FLIGHT_ACTIONS.length;
 export const OBSERVE_TICKS = 18;
+export const THROW_ORIGIN = Object.freeze({ x: 3.8, y: 2.8, z: 5.9 });
 
 // Hand-built visual/proprioceptive measurements, not additional FlyWire neurons.
 // Only current and previous observed geometry is used, never aim/force/trace.
@@ -75,7 +76,7 @@ export class PlaySession {
   goalDistance() { const w = this.world, g = w.goal; return Math.hypot(w.x - g.x, w.height - g.y, w.z - g.z); }
   positionThrower() {
     this.home = { x: this.world.x, z: this.world.z };
-    this.origin = { x: this.home.x + 3.8, y: Math.min(7.4, 2.8 + this.world.height), z: this.home.z + 5.9 };
+    this.origin = { ...THROW_ORIGIN };
   }
   prepare() {
     if (this.world.hit) this.world = new PlayWorld({ props: this.world.props, x: (this.rig.rng() - 0.5) * 3, z: (this.rig.rng() - 0.5) * 3 });
@@ -93,7 +94,7 @@ export class PlaySession {
     this.training = learning; this.mode = mode; this.result = null;
     this.rig.eng.reset(); this.previous = null; this.steps = []; this.shotTicks = 0;
     launch(this.world, shot); this.phase = 'flight';
-    this.episode = { launch: { ...shot.origin }, angle: shot.angle, approach: 1.8, contactAt: null, frames: [] };
+    this.episode = { launch: { ...shot.origin }, angle: shot.angle, grounded: true, approach: 1.8, contactAt: null, frames: [] };
     return shot;
   }
   observe(training = this.training, record = true) {

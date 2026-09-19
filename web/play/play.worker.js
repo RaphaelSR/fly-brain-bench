@@ -1,6 +1,6 @@
 import { fetchGz, decodeLabels, decodeConnectome } from '../js/data.js';
 import { createRig } from '../defend/neural-rig.js';
-import { PlaySession } from './core.js?v=flight3';
+import { PlaySession } from './core.js?v=grounded1';
 import { newProps } from './props.js';
 
 let session, rigData;

@@ -1,5 +1,5 @@
 import { Policy } from '../defend/policy.js';
-import { PROTOCOL, unpackPolicy, packPolicy, DIMENSIONS, ACTION_COUNT } from './core.js?v=flight3';
+import { PROTOCOL, unpackPolicy, packPolicy, DIMENSIONS, ACTION_COUNT } from './core.js?v=grounded1';
 export const SAVE_KEY = 'fly-play-flight-v2';
 export const LEGACY_KEY = 'fly-play-save-v1';
 
