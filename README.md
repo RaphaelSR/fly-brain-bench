@@ -6,7 +6,7 @@ browser tab, at 60 fps, with no dependencies.
 
 Available in English, Portuguese and Spanish.
 
-**[Open the bench →](https://raphaelsr.github.io/fly-brain-bench/)**
+**[Open the bench →](https://flybrain.raphaelrocha.com/)**
 
 ---
 
