@@ -7,7 +7,7 @@ plain JavaScript with no runtime dependencies.
 
 Available in English, Portuguese and Spanish.
 
-**[Open the bench →](https://flybrain.raphaelrocha.com/)**  ·  **[Escape Reflex →](https://flybrain.raphaelrocha.com/defend/)**
+**[Open the bench →](https://flybrain.raphaelrocha.com/)**  ·  **[Survival Arena →](https://flybrain.raphaelrocha.com/defend/)**
 
 ---
 
@@ -23,8 +23,9 @@ over it. You pick a sense — sugar on the mouthparts, the smell of fermenting f
 a shadow expanding overhead — and those sensory neurons start firing. Everything
 after that is the connectome doing its own thing.
 
-**There is no model to train, no weights to fit, and no routing logic.** The only
-inputs are five biophysical constants and a wiring diagram somebody measured.
+**The bench's neural circuit has no weights to fit or hand-written routing logic.**
+Its inputs are five biophysical constants and a measured wiring diagram. The
+separate survival arena adds a trainable action policy on top of that fixed circuit.
 
 ### Things that fall out of it on their own
 
