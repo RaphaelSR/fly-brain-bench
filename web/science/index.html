@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fly Brain · Ciência e método</title>
+  <meta name="description" content="Entenda os dados reais, a matemática, os resultados e os limites científicos do Fly Brain Bench e da arena de sobrevivência.">
+  <meta name="theme-color" content="#0b1114">
+  <link rel="stylesheet" href="science.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content / Ir ao conteúdo</a>
+  <header class="top">
+    <a class="brand" href="../">FLY BRAIN <span data-copy="brand">Ciência & método</span></a>
+    <nav><a id="arenaLink" href="../defend/" data-copy="arena">Arena</a><a id="benchLink" href="../" data-copy="bench">Bancada</a></nav>
+    <label class="language"><span data-copy="language">Idioma</span><select id="language"><option value="pt">Português</option><option value="en">English</option><option value="es">Español</option></select></label>
+  </header>
+  <main id="main">
+    <section class="hero">
+      <p class="eyebrow" data-copy="eyebrow">UM GUIA PARA EXPLORAR SEM CONFUNDIR</p>
+      <h1 data-copy="title">O que essa mosca realmente nos mostra?</h1>
+      <p class="lede" data-copy="intro"></p>
+      <nav class="chapters" aria-label="Sections"><a href="#evidence" data-copy="evidenceTitle"></a><a href="#math" data-copy="mathTitle"></a><a href="#results" data-copy="resultsTitle"></a><a href="#faq">FAQ</a></nav>
+    </section>
+    <section id="evidence" aria-labelledby="evidenceTitle">
+      <p class="eyebrow">01</p><h2 id="evidenceTitle" data-copy="evidenceTitle"></h2>
+      <div id="evidenceCards" class="cards"></div>
+      <p class="notice" data-copy="centralCaution"></p>
+    </section>
+    <section id="math" aria-labelledby="mathTitle">
+      <p class="eyebrow">02</p><h2 id="mathTitle" data-copy="mathTitle"></h2>
+      <p data-copy="mathIntro"></p>
+      <div id="equations"></div>
+      <div class="labs">
+        <article class="lab" aria-labelledby="softmaxTitle">
+          <p class="eyebrow" data-copy="toy"></p><h3 id="softmaxTitle" data-copy="softmaxTitle"></h3>
+          <p data-copy="softmaxIntro"></p>
+          <label for="temperature"><span data-copy="temperature"></span><output id="temperatureValue" for="temperature">1.00</output></label>
+          <input id="temperature" type="range" min="0.25" max="3" step="0.05" value="1">
+          <ol id="probabilities" class="probabilities"></ol>
+          <p class="fine" data-copy="softmaxCaution"></p>
+        </article>
+        <article class="lab" aria-labelledby="sampleTitle">
+          <p class="eyebrow" data-copy="toy"></p><h3 id="sampleTitle" data-copy="sampleTitle"></h3>
+          <p data-copy="sampleIntro"></p>
+          <div class="sample-fields">
+            <label><span data-copy="successes"></span><input id="successes" type="number" min="0" max="100000" step="1" value="20" aria-describedby="sampleAssumptions"></label>
+            <label><span data-copy="trials"></span><input id="trials" type="number" min="1" max="100000" step="1" value="20" aria-describedby="sampleAssumptions"></label>
+          </div>
+          <output id="sampleResult" class="result" aria-live="polite"></output>
+          <p id="sampleAssumptions" class="notice" data-copy="sampleCaution"></p>
+          <a href="https://www.itl.nist.gov/div898/handbook/prc/section2/prc241.htm" data-copy="wilsonSource"></a>
+        </article>
+      </div>
+    </section>
+    <section id="results" aria-labelledby="resultsTitle">
+      <p class="eyebrow">03</p><h2 id="resultsTitle" data-copy="resultsTitle"></h2>
+      <p data-copy="resultsIntro"></p>
+      <p id="reportStatus" role="status"></p>
+      <div class="report" id="report" hidden>
+        <p id="reportSummary" class="report-summary"></p>
+        <div class="table-scroll" tabindex="0" role="region" aria-labelledby="reportCaption">
+          <table><caption id="reportCaption" data-copy="reportCaption"></caption><thead><tr><th scope="col" data-copy="flight"></th><th scope="col" data-copy="roam"></th><th scope="col" data-copy="trained"></th><th scope="col" data-copy="blank"></th></tr></thead><tbody id="reportRows"></tbody></table>
+        </div>
+        <p class="notice" data-copy="reportCaution"></p>
+      </div>
+      <p><a href="../defend/data/pretrained-arena.json" data-copy="rawReport"></a> · <a href="https://github.com/RaphaelSR/fly-brain-bench/blob/main/tools/train-arena.mjs" data-copy="reproduce"></a></p>
+      <h3 data-copy="experimentTitle"></h3><ol id="experimentSteps" class="experiment"></ol>
+    </section>
+    <section id="faq" aria-labelledby="faqTitle">
+      <p class="eyebrow">04</p><h2 id="faqTitle" data-copy="faqTitle"></h2>
+      <label class="search"><span data-copy="search"></span><input id="faqSearch" type="search" autocomplete="off" aria-controls="faqList"></label>
+      <p id="faqCount" class="fine" role="status"></p><div id="faqList"></div>
+    </section>
+    <section id="sources" aria-labelledby="sourcesTitle">
+      <p class="eyebrow">05</p><h2 id="sourcesTitle" data-copy="sourcesTitle"></h2>
+      <p data-copy="sourcesIntro"></p><ol id="sourcesList" class="sources"></ol>
+      <p class="fine" data-copy="audit"></p>
+      <a href="https://github.com/RaphaelSR/fly-brain-bench/blob/main/tools/check_science_math.py" data-copy="auditLink"></a>
+    </section>
+  </main>
+  <footer><p data-copy="footer"></p><a href="#main" data-copy="top"></a></footer>
+  <noscript><p>Este guia precisa de JavaScript para as traduções e exemplos. Consulte a <a href="https://github.com/RaphaelSR/fly-brain-bench#what-this-actually-is">documentação científica no GitHub</a>.</p></noscript>
+  <script type="module" src="page.js"></script>
+</body>
+</html>

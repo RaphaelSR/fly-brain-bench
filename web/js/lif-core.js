@@ -1,7 +1,8 @@
 /* The leaky integrate-and-fire engine, as a class.
 
-   Parameters follow Shiu et al. (2024); integration is the closed-form solution
-   of the two-variable system, so results do not depend on step size. This is the
+   Parameters are adapted from Shiu et al. (2024). Subthreshold integration uses
+   the closed-form solution; spike timing, delays and refractory periods remain
+   discretized, so the full simulation can depend on step size. This is the
    only copy — the web worker wraps it, and the headless trainer imports it
    directly, so the browser and the training run cannot drift apart. */
 

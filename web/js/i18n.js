@@ -25,7 +25,7 @@ const EN = {
   'info.decoder.t': "Two decoders",
   'info.decoder.b': "Hand-written reads the named channels with rules we wrote: escape above a threshold means takeoff, a left/right imbalance in DNa02 means a turn. Learned uses a classifier you fit yourself from examples, over 58 descending and motor cell types. Switch between them to compare. Learned only becomes available once you have trained one.",
   'info.train.t': "How teaching works",
-  'info.train.b': "Run a stimulus, wait a couple of seconds for the activity to settle, then click the behaviour you think it should produce. That captures the current firing rates of 58 descending cell types as one labelled example. Do it a few times, switch stimulus, label that one differently, and train. It fits a multinomial logistic regression in the browser in about a second. It changes nothing in the brain — the connectome has no plasticity. You are fitting a readout, which is exactly what a neuroscientist does with a decoding model.",
+  'info.train.b': "Run a stimulus, wait a couple of seconds for the activity to settle, then click the behaviour you think it should produce. That captures the current firing rates of 58 descending cell types as one labelled example. Do it a few times, switch stimulus, label that one differently, and train. It fits a multinomial logistic regression in the browser in about a second. It changes nothing in the brain — this implementation keeps the circuit fixed. You are fitting a readout, which is exactly what a neuroscientist does with a decoding model.",
   'info.responding.t': "Who answered",
   'info.responding.b': "The cell types firing hardest right now, excluding the ones you are stimulating, with the number of cells of that type that are active. This is where the interesting results show up: drive sugar and the proboscis motor neurons appear; drive looming and DNp01, the escape trigger, appears. Nothing steers activity toward them.",
   'info.transport.t': "Speed and structure",
@@ -155,7 +155,7 @@ const EN = {
   'train.acc': 'Fits {p}% of your examples',
   'train.clear': 'Clear',
   'train.need': 'Capture at least two different behaviours to train.',
-  'train.note': 'This trains the <strong>readout</strong>, not the brain. The connectome has no plasticity — you are fitting a classifier that maps descending-neuron activity onto a behaviour you chose.',
+  'train.note': 'This trains the <strong>readout</strong>, not the brain. This implementation keeps the circuit fixed — you are fitting a classifier that maps descending-neuron activity onto a behaviour you chose.',
 
   'ex.eyebrow': 'The whole thing in six boxes',
   'ex.title': 'What is actually happening here',
@@ -164,7 +164,7 @@ const EN = {
   'ex.1.a': 'Published by the FlyWire consortium, release 783. Free to reuse under CC-BY.',
   'ex.2.h': 'Each neuron is a leaky bucket',
   'ex.2.p': 'Every neuron here holds a voltage. Left alone it drifts back to its resting level of −52 mV, like water draining out. Incoming signals push it up — or down, if the sender is an inhibitory neuron. Cross −45 mV and it <strong>fires</strong>: it dumps its charge into everything downstream, resets to the bottom, and goes deaf for 2.2 ms before it can fire again.',
-  'ex.2.a': 'Five constants, taken from published fly electrophysiology. No weights were fitted, and there is no training step in the brain itself.',
+  'ex.2.a': 'Shared approximate parameters adapted from a published model, not individually measured physiology. No weights were fitted, and there is no training step in the brain itself.',
   'ex.3.h': 'Colour is the chemical, not the mood',
   'ex.3.p': 'Each neuron releases one transmitter, and that decides whether it pushes its targets up or pulls them down. Acetylcholine excites; GABA and glutamate inhibit. In this fly, 62% of neurons are excitatory. The colours in the viewport are those chemicals — so a wash of amber spreading outward is excitation, and the blue and violet cells are the brakes.',
   'ex.4.h': 'Stimulating is the only input',
@@ -277,7 +277,7 @@ const PT = {
   'info.decoder.t': "Dois decodificadores",
   'info.decoder.b': "Escrito à mão lê os canais nomeados com regras que escrevemos: fuga acima de um limiar significa decolagem, desequilíbrio esquerda/direita no DNa02 significa virar. Aprendido usa um classificador que você mesmo ajusta a partir de exemplos, sobre 58 tipos celulares descendentes e motores. Alterne entre os dois para comparar. Aprendido só fica disponível depois que você treinar um.",
   'info.train.t': "Como o ensino funciona",
-  'info.train.b': "Rode um estímulo, espere alguns segundos a atividade assentar, e clique no comportamento que você acha que ele deveria produzir. Isso captura as taxas de disparo atuais de 58 tipos celulares descendentes como um exemplo rotulado. Faça algumas vezes, troque de estímulo, rotule diferente, e treine. Ele ajusta uma regressão logística multinomial no browser em cerca de um segundo. Não muda nada no cérebro — o connectome não tem plasticidade. Você está ajustando uma leitura, que é exatamente o que um neurocientista faz com um modelo de decodificação.",
+  'info.train.b': "Rode um estímulo, espere alguns segundos a atividade assentar, e clique no comportamento que você acha que ele deveria produzir. Isso captura as taxas de disparo atuais de 58 tipos celulares descendentes como um exemplo rotulado. Faça algumas vezes, troque de estímulo, rotule diferente, e treine. Ele ajusta uma regressão logística multinomial no browser em cerca de um segundo. Não muda nada no cérebro — esta implementação mantém o circuito fixo. Você está ajustando uma leitura, que é exatamente o que um neurocientista faz com um modelo de decodificação.",
   'info.responding.t': "Quem respondeu",
   'info.responding.b': "Os tipos celulares que mais disparam agora, excluindo os que você está estimulando, com quantas células daquele tipo estão ativas. É aqui que os resultados interessantes aparecem: estimule açúcar e surgem os motoneurônios da probóscide; estimule looming e surge o DNp01, o gatilho da fuga. Nada direciona a atividade para eles.",
   'info.transport.t': "Velocidade e estrutura",
@@ -407,7 +407,7 @@ const PT = {
   'train.acc': 'Acerta {p}% dos seus exemplos',
   'train.clear': 'Limpar',
   'train.need': 'Capture pelo menos dois comportamentos diferentes para treinar.',
-  'train.note': 'Isto treina a <strong>leitura</strong>, não o cérebro. O connectome não tem plasticidade — você está ajustando um classificador que mapeia atividade dos neurônios descendentes para um comportamento que você escolheu.',
+  'train.note': 'Isto treina a <strong>leitura</strong>, não o cérebro. Esta implementação mantém o circuito fixo — você está ajustando um classificador que mapeia atividade dos neurônios descendentes para um comportamento que você escolheu.',
 
   'ex.eyebrow': 'A coisa toda em seis caixas',
   'ex.title': 'O que está realmente acontecendo aqui',
@@ -416,7 +416,7 @@ const PT = {
   'ex.1.a': 'Publicado pelo consórcio FlyWire, versão 783. Livre para reuso sob CC-BY.',
   'ex.2.h': 'Cada neurônio é um balde furado',
   'ex.2.p': 'Todo neurônio aqui guarda uma voltagem. Sozinho, ela volta para o repouso de −52 mV, como água escoando. Sinais que chegam empurram para cima — ou para baixo, se quem mandou for inibitório. Cruzou −45 mV e ele <strong>dispara</strong>: despeja a carga em tudo a jusante, volta ao fundo e fica surdo por 2,2 ms antes de poder disparar de novo.',
-  'ex.2.a': 'Cinco constantes, tiradas de eletrofisiologia publicada da mosca. Nenhum peso foi ajustado, e não existe etapa de treino no cérebro em si.',
+  'ex.2.a': 'Parâmetros aproximados compartilhados, adaptados de um modelo publicado, não fisiologia medida de cada célula. Nenhum peso foi ajustado, e não existe etapa de treino no cérebro em si.',
   'ex.3.h': 'A cor é o químico, não o humor',
   'ex.3.p': 'Cada neurônio libera um transmissor, e isso decide se ele empurra seus alvos para cima ou para baixo. Acetilcolina excita; GABA e glutamato inibem. Nesta mosca, 62% dos neurônios são excitatórios. As cores na tela são esses químicos — então uma onda âmbar se espalhando é excitação, e as células azuis e violetas são o freio.',
   'ex.4.h': 'Estimular é a única entrada',
@@ -529,7 +529,7 @@ const ES = {
   'info.decoder.t': "Dos decodificadores",
   'info.decoder.b': "Escrito a mano lee los canales con nombre mediante reglas que escribimos: huida por encima de un umbral significa despegue, un desequilibrio izquierda/derecha en DNa02 significa giro. Aprendido usa un clasificador que tú mismo ajustas a partir de ejemplos, sobre 58 tipos celulares descendentes y motores. Alterna entre ambos para comparar. Aprendido solo se habilita cuando hayas entrenado uno.",
   'info.train.t': "Cómo funciona la enseñanza",
-  'info.train.b': "Ejecuta un estímulo, espera un par de segundos a que la actividad se asiente, y haz clic en el comportamiento que crees que debería producir. Eso captura las tasas de disparo actuales de 58 tipos celulares descendentes como un ejemplo etiquetado. Hazlo varias veces, cambia de estímulo, etiquétalo distinto, y entrena. Ajusta una regresión logística multinomial en el navegador en cerca de un segundo. No cambia nada en el cerebro — el conectoma no tiene plasticidad. Estás ajustando una lectura, que es exactamente lo que hace un neurocientífico con un modelo de decodificación.",
+  'info.train.b': "Ejecuta un estímulo, espera un par de segundos a que la actividad se asiente, y haz clic en el comportamiento que crees que debería producir. Eso captura las tasas de disparo actuales de 58 tipos celulares descendentes como un ejemplo etiquetado. Hazlo varias veces, cambia de estímulo, etiquétalo distinto, y entrena. Ajusta una regresión logística multinomial en el navegador en cerca de un segundo. No cambia nada en el cerebro — esta implementación mantiene fijo el circuito. Estás ajustando una lectura, que es exactamente lo que hace un neurocientífico con un modelo de decodificación.",
   'info.responding.t': "Quién respondió",
   'info.responding.b': "Los tipos celulares que más disparan ahora, excluyendo los que estás estimulando, con cuántas células de ese tipo están activas. Aquí aparecen los resultados interesantes: estimula azúcar y salen las motoneuronas de la probóscide; estimula aproximación y sale DNp01, el gatillo de la huida. Nada dirige la actividad hacia ellos.",
   'info.transport.t': "Velocidad y estructura",
@@ -659,7 +659,7 @@ const ES = {
   'train.acc': 'Acierta el {p}% de tus ejemplos',
   'train.clear': 'Borrar',
   'train.need': 'Captura al menos dos comportamientos distintos para entrenar.',
-  'train.note': 'Esto entrena la <strong>lectura</strong>, no el cerebro. El conectoma no tiene plasticidad — estás ajustando un clasificador que asigna la actividad de las neuronas descendentes a un comportamiento que elegiste.',
+  'train.note': 'Esto entrena la <strong>lectura</strong>, no el cerebro. Esta implementación mantiene fijo el circuito — estás ajustando un clasificador que asigna la actividad de las neuronas descendentes a un comportamiento que elegiste.',
 
   'ex.eyebrow': 'Todo en seis cajas',
   'ex.title': 'Qué está pasando aquí en realidad',
@@ -668,7 +668,7 @@ const ES = {
   'ex.1.a': 'Publicado por el consorcio FlyWire, versión 783. Libre para reutilizar bajo CC-BY.',
   'ex.2.h': 'Cada neurona es un cubo agujereado',
   'ex.2.p': 'Cada neurona guarda un voltaje. Por sí solo vuelve al reposo de −52 mV, como agua que se escurre. Las señales entrantes lo empujan hacia arriba — o hacia abajo, si quien envía es inhibitoria. Al cruzar −45 mV <strong>dispara</strong>: vuelca su carga en todo lo que está aguas abajo, se reinicia y queda sorda 2,2 ms antes de poder disparar otra vez.',
-  'ex.2.a': 'Cinco constantes, tomadas de electrofisiología publicada de la mosca. No se ajustó ningún peso, y no hay paso de entrenamiento en el cerebro mismo.',
+  'ex.2.a': 'Parámetros aproximados compartidos, adaptados de un modelo publicado, no fisiología medida de cada célula. No se ajustó ningún peso, y no hay paso de entrenamiento en el cerebro mismo.',
   'ex.3.h': 'El color es el químico, no el ánimo',
   'ex.3.p': 'Cada neurona libera un transmisor, y eso decide si empuja a sus objetivos hacia arriba o hacia abajo. La acetilcolina excita; GABA y glutamato inhiben. En esta mosca, el 62% de las neuronas son excitatorias. Los colores de la pantalla son esos químicos — así que una ola ámbar extendiéndose es excitación, y las células azules y violetas son el freno.',
   'ex.4.h': 'Estimular es la única entrada',
@@ -818,6 +818,7 @@ Object.assign(ES, {
 });
 
 export const LOCALES = { en: EN, pt: PT, es: ES };
+for (const [locale, label] of Object.entries({ en: 'Science & FAQ ↗', pt: 'Ciência & FAQ ↗', es: 'Ciencia & FAQ ↗' })) LOCALES[locale]['science.link'] = label;
 let current = 'en';
 
 export function detectLocale() {
@@ -848,6 +849,9 @@ export function t(key, vars) {
 
 /* Applies translations to any element carrying data-i18n / data-i18n-html. */
 export function applyDom(root = document) {
+  root.querySelectorAll('[data-science-link]').forEach(el => {
+    const url = new URL(el.href); url.searchParams.set('lang', current); el.href = url.href;
+  });
   root.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
   root.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = t(el.dataset.i18nHtml); });
 }
