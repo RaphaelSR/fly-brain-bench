@@ -1,169 +1,56 @@
-/* Leaky integrate-and-fire engine for the FlyWire connectome.
-   Parameters follow Shiu et al. (2024) exactly; integration is the closed-form
-   solution of the two-variable system, so results do not depend on step size. */
+/* Web-worker wrapper around the shared engine in lif-core.js.
 
-const V0 = -52.0, VRST = -52.0, VTH = -45.0;   // mV
-const TMBR = 20.0, TAU = 5.0;                   // ms
-const TRFC = 2.2, TDLY = 1.8;                   // ms
-const WSYN = 0.275;                             // mV per synapse
-const RPOI = 150.0, FPOI = 250.0;               // Poisson drive
-const DT = 0.1;                                 // ms
+   The engine itself lives in one place so the browser and the headless trainer
+   cannot drift apart; this file only handles messages and paces the posts. */
 
-const EV = Math.exp(-DT / TMBR);
-const EG = Math.exp(-DT / TAU);
-const KC = (TAU / (TAU - TMBR)) * (EG - EV);    // exact g -> v coupling
-const RFC_STEPS = Math.round(TRFC / DT);
-const DLY_STEPS = Math.round(TDLY / DT);
-const P_POI = RPOI * DT / 1000;
-const W_POI = WSYN * FPOI;
-const EPS_V = 0.02, EPS_G = 0.02;               // drop from active set below this
+import { Engine } from './lif-core.js';
 
-let N = 0, indptr = null, indices = null, weights = null;
-let v, g, rfc, inActive, isStim, spikeCount;
-let active, nActive = 0;
-let ring, ringLen;
-let stimList = new Int32Array(0);
-let stimRate = null;   // per-neuron Poisson rate in Hz, or null for the default
-let step = 0, running = false, speed = 8;
-let outIdx, outCount = 0;
-let totalSpikes = 0;
-
-function reset() {
-  v.fill(V0); g.fill(0); rfc.fill(0); inActive.fill(0); spikeCount.fill(0);
-  nActive = 0; step = 0; totalSpikes = 0; outCount = 0;
-  for (let i = 0; i < ringLen; i++) ring[i].n = 0;
-  for (let k = 0; k < stimList.length; k++) touch(stimList[k]);
-}
-
-function touch(i) {
-  if (inActive[i]) return;
-  inActive[i] = 1; active[nActive++] = i;
-}
-
-function ringPush(slot, i) {
-  const r = ring[slot];
-  if (r.n === r.buf.length) { const b = new Int32Array(r.buf.length * 2); b.set(r.buf); r.buf = b; }
-  r.buf[r.n++] = i;
-}
-
-function advance() {
-  const slot = step % DLY_STEPS;
-
-  // 1. deliver spikes emitted TDLY ago
-  const r = ring[slot];
-  for (let k = 0; k < r.n; k++) {
-    const src = r.buf[k];
-    const a = indptr[src], b = indptr[src + 1];
-    for (let e = a; e < b; e++) {
-      const j = indices[e];
-      g[j] += weights[e];
-      touch(j);
-    }
-  }
-  r.n = 0;
-
-  // 2. Poisson drive on the stimulated set
-  for (let k = 0; k < stimList.length; k++) {
-    const p = stimRate ? stimRate[k] * (DT / 1000) : P_POI;
-    if (p > 0 && Math.random() < p) { const i = stimList[k]; v[i] += W_POI; touch(i); }
-  }
-
-  // 3. integrate + threshold, active set only
-  let w = 0;
-  outCount = 0;
-  for (let k = 0; k < nActive; k++) {
-    const i = active[k];
-    if (rfc[i] > 0) { rfc[i]--; active[w++] = i; continue; }
-    const gi = g[i], vi = v[i];
-    let vn = V0 + (vi - V0) * EV + KC * gi;
-    const gn = gi * EG;
-    if (vn > VTH) {
-      v[i] = VRST; g[i] = 0;
-      if (!isStim[i]) rfc[i] = RFC_STEPS;
-      spikeCount[i]++; totalSpikes++;
-      ringPush((step + DLY_STEPS - 1) % DLY_STEPS, i);
-      if (outCount < outIdx.length) outIdx[outCount++] = i;
-      active[w++] = i;
-    } else {
-      v[i] = vn; g[i] = gn;
-      const dv = vn - V0;
-      if ((dv < EPS_V && dv > -EPS_V) && gn < EPS_G && gn > -EPS_G && !isStim[i]) {
-        inActive[i] = 0; v[i] = V0; g[i] = 0;     // retire: exactly at rest
-      } else active[w++] = i;
-    }
-  }
-  nActive = w;
-  step++;
-}
-
-self.onmessage = (ev) => {
-  const m = ev.data;
-
-  if (m.cmd === 'init') {
-    N = m.N; indptr = m.indptr; indices = m.indices; weights = m.weights;
-    v = new Float32Array(N); g = new Float32Array(N);
-    rfc = new Int16Array(N); inActive = new Uint8Array(N); isStim = new Uint8Array(N);
-    spikeCount = new Int32Array(N); active = new Int32Array(N);
-    outIdx = new Int32Array(1 << 16);
-    ringLen = DLY_STEPS; ring = [];
-    for (let i = 0; i < ringLen; i++) ring.push({ buf: new Int32Array(1024), n: 0 });
-    reset();
-    self.postMessage({ type: 'ready', N, edges: indices.length });
-    return;
-  }
-
-  if (m.cmd === 'stim') {
-    isStim.fill(0);
-    stimList = new Int32Array(m.idx || []);
-    stimRate = m.rates ? new Float32Array(m.rates) : null;
-    for (let k = 0; k < stimList.length; k++) { isStim[stimList[k]] = 1; touch(stimList[k]); }
-    // The bench wants a clean slate per stimulus, so reset stays the default. A
-    // scenario that samples the same brain over and over must pass reset:false —
-    // resetting rewinds `step`, and anything pacing itself on the returned clock
-    // then waits for a time that has already gone past.
-    if (m.reset !== false) reset();
-    return;
-  }
-
-  if (m.cmd === 'run') {
-    const was = running; running = m.on;
-    if (running && !was) tick();   // never start a second tick chain
-    return;
-  }
-  if (m.cmd === 'speed') { speed = m.value; return; }
-  if (m.cmd === 'reset') { reset(); emit(); return; }
-};
-
-function emit() {
-  const buf = new Int32Array(outCount);
-  buf.set(outIdx.subarray(0, outCount));
-  self.postMessage({
-    type: 'frame', spikes: buf, step,
-    t: step * DT, nActive, totalSpikes
-  }, [buf.buffer]);
-}
-
+let eng = null, running = false, speed = 8;
 let acc = null, accN = 0, lastPost = 0;
 const POST_MS = 33;      // wall-clock cadence for frames to the main thread
 
+self.onmessage = (ev) => {
+  const m = ev.data;
+  if (m.cmd === 'init') {
+    eng = new Engine({ N: m.N, indptr: m.indptr, indices: m.indices,
+                       weights: m.weights, dt: m.dt || 0.1 });
+    self.postMessage({ type: 'ready', N: m.N, edges: m.indices.length });
+    return;
+  }
+  if (!eng) return;
+  if (m.cmd === 'stim') {
+    eng.stimulate(m.idx, m.rates);
+    // The bench wants a clean slate per stimulus, so reset stays the default. A
+    // caller that samples the same brain over and over must pass reset:false —
+    // resetting rewinds the step counter and therefore the clock this worker
+    // reports, and anything pacing itself on that clock then waits forever.
+    if (m.reset !== false) eng.reset();
+    return;
+  }
+  if (m.cmd === 'run') { const was = running; running = m.on; if (running && !was) tick(); return; }
+  if (m.cmd === 'speed') { speed = m.value; return; }
+  if (m.cmd === 'eps') { eng.EPS = m.v; return; }
+  if (m.cmd === 'reset') { eng.reset(); post(true); return; }
+};
+
+function post(force) {
+  const now = Date.now();
+  if (!force && now - lastPost < POST_MS) return;
+  lastPost = now;
+  const buf = new Int32Array(accN);
+  buf.set(acc.subarray(0, accN));
+  accN = 0;
+  self.postMessage({ type: 'frame', spikes: buf, step: eng.step, t: eng.t,
+                     nActive: eng.nActive, totalSpikes: eng.totalSpikes }, [buf.buffer]);
+}
+
 function tick() {
   if (!running) return;
-  // Accumulate spikes across sub-steps, but post on a wall clock rather than on
-  // every tick. Under load a tick can carry six figures of spikes, and posting
-  // each one starved the main thread badly enough to drop it to about 1 fps.
-  if (!acc || acc.length < 1 << 18) acc = new Int32Array(1 << 18);
-  for (let s = 0; s < speed; s++) {
-    advance();
-    for (let k = 0; k < outCount && accN < acc.length; k++) acc[accN++] = outIdx[k];
-  }
-  const now = Date.now();
-  if (now - lastPost >= POST_MS) {
-    lastPost = now;
-    const buf = new Int32Array(accN);
-    buf.set(acc.subarray(0, accN));
-    accN = 0;
-    self.postMessage({ type: 'frame', spikes: buf, step, t: step * DT, nActive, totalSpikes },
-      [buf.buffer]);
-  }
+  // Spikes accumulate across sub-steps and go out on a wall clock: under load a
+  // single tick carries six figures of them, and posting each one starved the
+  // main thread badly enough to drop the page to about one frame per second.
+  if (!acc) acc = new Int32Array(1 << 18);
+  eng.run(speed, i => { if (accN < acc.length) acc[accN++] = i; });
+  post(false);
   setTimeout(tick, 0);
 }

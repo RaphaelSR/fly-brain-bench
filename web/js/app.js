@@ -85,7 +85,7 @@ async function boot() {
     try { S.fly = new FlyView($('#flywell')); } catch (e) { console.warn('fly view unavailable', e); }
     S.dec = new Decoder(S.channels.channels, S.channels.features);
 
-    S.worker = new Worker('js/sim.worker.js');
+    S.worker = new Worker('js/sim.worker.js', { type: 'module' });
     S.worker.onmessage = onWorker;
     S.worker.postMessage({ cmd: 'init', N, indptr: conn.indptr, indices: conn.indices, weights: conn.weights },
       [conn.indptr.buffer, conn.indices.buffer, conn.weights.buffer]);
