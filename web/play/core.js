@@ -1,4 +1,4 @@
-import { SurvivalWorld, WINDUP } from '../defend/survival.js';
+import { SurvivalWorld, WINDUP } from '../defend/survival.js?v=play1';
 import { Policy } from '../defend/policy.js';
 import { makeShot, launch, traceShot, WORLD_STEP, SHOT_SECONDS } from './physics.js';
 

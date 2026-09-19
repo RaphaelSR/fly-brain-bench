@@ -1,8 +1,8 @@
 import * as THREE from '../vendor/three/three.module.min.js';
-import { Arena3D } from '../defend/arena3d.js';
+import { Arena3D } from '../defend/arena3d.js?v=play1';
 import { bindSceneLayout } from '../defend/scene-layout.js';
 import { BrainView } from '../js/gl.js';
-import { BrainInspector } from '../defend/brain-inspector.js';
+import { BrainInspector } from '../defend/brain-inspector.js?v=play1';
 import { fetchGz, decodeLabels, decodePositions, decodeConnectome } from '../js/data.js';
 import { detectLocale, setLocale, getLocale, applyDom } from '../js/i18n.js';
 import { sampleEpisode } from '../defend/live.js';
