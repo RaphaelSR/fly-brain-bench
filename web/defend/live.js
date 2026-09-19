@@ -9,7 +9,9 @@ export function sampleEpisode(episode, time) {
   const u = Math.max(0, Math.min(1, (time - a.t) / (b.t - a.t || 1)));
   const lerp = key => a[key] + (b[key] - a[key]) * u;
   const p = a.projectile, q = b.projectile;
-  return { ...a, t: time, x: lerp('x'), z: lerp('z'), height: lerp('height'),
+  const props = a.props && b.props ? a.props.map((p, i) => Object.fromEntries(Object.entries(p).map(([key, value]) =>
+    [key, typeof value === 'number' ? value + (b.props[i][key] - value) * u : value]))) : null;
+  return { ...a, ...(props ? { props } : {}), t: time, x: lerp('x'), z: lerp('z'), height: lerp('height'),
     pitch: lerp('pitch'), roll: lerp('roll'), air: lerp('air'), tuck: lerp('tuck'),
     projectile: Object.fromEntries(['x', 'y', 'z', 'yaw'].map(k => [k, p[k] + (q[k] - p[k]) * u])) };
 }

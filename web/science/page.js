@@ -1,4 +1,4 @@
-import { CONTENT, SOURCES } from './content.js';
+import { CONTENT, SOURCES } from './content.js?v=patio2';
 import { softmax, wilson, summarizeEvaluation } from './math.js';
 import { detectLocale, setLocale } from '../js/i18n.js';
 

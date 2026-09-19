@@ -1,4 +1,6 @@
-import { SurvivalWorld, WORLD_STEP, WINDUP } from '../defend/survival.js?v=play1';
+import { WORLD_STEP, WINDUP } from '../defend/survival.js?v=patio2';
+import { PlayWorld } from './world.js';
+import { advanceProps } from './props.js';
 export { WORLD_STEP };
 
 export const SHOT_SECONDS = 3.6;
@@ -25,15 +27,15 @@ export function launch(world, shot) {
 
 // The preview and immobile control use the exact projectile integrator/colliders.
 // Neither predicts the live fly or passes a predicted contact to its controller.
-export function traceShot(shot, fly = null) {
-  const world = new SurvivalWorld({ expanded: true });
+export function traceShot(shot, fly = null, props = fly?.props) {
+  const world = new PlayWorld({ props });
   launch(world, shot);
   if (fly) Object.assign(world, { x: fly.x, z: fly.z, height: fly.height });
-  const points = [{ ...world.projectile }]; let wouldHit = false;
+  const points = [{ ...world.projectile }]; let wouldHit = false, contactAt = null;
   for (let i = 0; i < Math.round(SHOT_SECONDS / WORLD_STEP); i++) {
-    world.time += WORLD_STEP; world.advanceProjectile();
-    if (fly && world.collides()) wouldHit = true;
+    world.time += WORLD_STEP; advanceProps(world.props, WORLD_STEP); world.advanceProjectile();
+    if (fly && world.collides()) { wouldHit = true; contactAt ??= world.time; }
     if (i % 4 === 3) points.push({ ...world.projectile });
   }
-  return { points, wouldHit };
+  return { points, wouldHit, contactAt };
 }

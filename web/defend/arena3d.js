@@ -18,12 +18,12 @@ export function escapePose(state) {
 }
 
 export class Arena3D {
-  constructor(canvas) {
+  constructor(canvas, { courtyard = createCourtyard } = {}) {
     this.c = canvas;
     this.view = new FlyView(canvas, { arena: true });
     this.labels = {};
     const scene = this.view.scene;
-    createCourtyard(this.view);
+    this.environment = courtyard(this.view);
     this.carrier = new THREE.Group();
     this.carrier.add(this.view.rig.root);
     this.compression = new THREE.Group(); this.compression.add(this.carrier); scene.add(this.compression);
@@ -67,6 +67,7 @@ export class Arena3D {
   }
 
   drawLive(frame, episode, dt, cinematic = true, framing = null) {
+    this.environment?.update?.(frame.props);
     const rig = this.view.rig;
     this.halo.visible = false; this.approach.visible = false; this.pulse.visible = false;
     this.setObject('slipper');
