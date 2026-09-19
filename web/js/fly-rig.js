@@ -220,7 +220,7 @@ export class FlyRig {
         if (swing) {
           const u = (ph - 0.58) / 0.42, e = u * u * (3 - 2 * u);
           leg.foot.lerpVectors(leg.start, leg.end, e);
-          leg.foot.y = 0.02 + Math.sin(u * Math.PI) * 0.13;
+          leg.foot.y = height + 0.02 + Math.sin(u * Math.PI) * 0.13;
         }
         foot.copy(leg.foot).sub(this.root.position).applyQuaternion(q);
       } else {

@@ -7,6 +7,20 @@ body.defend main{display:grid; grid-template-columns:minmax(0,1fr) 318px; min-he
 .live-mode .pane:before{top:0}.live-mode .pane:after{bottom:0}
 .live-mode .pane figcaption{top:30px;z-index:2}
 .live-mode .card .info{display:none}
+.survival-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 8px;margin-bottom:12px}
+.survival-stats div{display:flex;flex-direction:column;gap:4px}
+.survival-stats b{font:500 20px var(--fm);color:var(--ink)}
+.survival-stats span{font-size:10px;color:var(--ink3)}
+.stage>.survival-stats{grid-template-columns:repeat(6,minmax(0,1fr));padding:12px 18px;margin:0;background:var(--panel);border-top:1px solid var(--line)}
+.profile-field{display:flex;flex-direction:column;gap:6px;margin:10px 0;font-size:12px;color:var(--ink2)}
+.profile-field select,.profile-field input{min-width:0;max-width:100%;padding:8px;background:var(--well);border:1px solid var(--line2);color:var(--ink);border-radius:5px}
+.profile-details{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.profile-details summary,#gameControls summary{font-size:12px;color:var(--ink2);cursor:pointer;line-height:1.6}
+.profile-buttons{display:flex;flex-wrap:wrap;gap:8px}.profile-buttons .profile-field{width:100%}
+.points-balance{display:block;font:500 25px var(--fm);color:var(--hot);margin:18px 0}
+.progress-card .cap{line-height:1.65}.progress-card button{min-height:36px}
+.profile-details a{font-size:11px;color:var(--ach)}
+#btnBet{width:100%;background:var(--ach);color:#1a1206;font-weight:600}
 
 /* ---------- stage ---------- */
 .stage{position:relative; background:var(--well); min-width:0; display:flex; flex-direction:column}
@@ -74,7 +88,7 @@ body.defend main{grid-template-columns:minmax(0,1fr) clamp(340px,32vw,460px)}
   padding:9px 16px; font-size:11px; color:var(--ink3); pointer-events:none;
   background:linear-gradient(to top,rgba(7,12,15,.92),transparent)}
 .stage-hud span:last-child{margin-left:auto}
-.live-mode .stage-hud{z-index:2;color:var(--ink2);background:#101c22d9}
+.live-mode .stage-hud{position:static;flex:none;z-index:2;color:var(--ink2);background:#101c22d9}
 body.shuffled .stage-hud span:last-child{color:var(--danger)}
 
 /* ---------- rail ---------- */
@@ -144,6 +158,8 @@ input[type=range]::-moz-range-thumb{width:13px; height:13px; border-radius:50%;
 .fine.err{color:var(--danger)}
 
 @media (max-width:900px){
+  .stage>.survival-stats{grid-template-columns:repeat(3,minmax(0,1fr));padding:9px 12px;gap:8px}
+  .survival-stats b{font-size:16px}
   body.defend{display:flex;flex-direction:column;overflow:auto;height:auto;min-height:100%}
   body.defend main{display:contents}
   body.defend .top{order:0}

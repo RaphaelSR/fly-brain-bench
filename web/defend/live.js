@@ -24,7 +24,7 @@ export class LiveSession {
       this.busy = false;
       const { resolve, reject } = this.pending; this.pending = null;
       if (data.error) reject(new Error(data.error));
-      else { this.episode = data.episode; this.time = 0; this.observation = -1; resolve(data.episode); }
+      else { this.episode = data.episode || null; this.time = 0; this.observation = -1; resolve(data); }
     };
     this.worker.onerror = e => {
       this.busy = false;

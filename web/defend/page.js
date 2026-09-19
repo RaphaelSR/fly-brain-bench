@@ -11,6 +11,8 @@ import { Threat, ArenaView } from './arena.js';
 import { Arena3D } from './arena3d.js';
 import { Recording, Player, BEAT, VERDICT } from './replay.js';
 import { LiveSession } from './live.js';
+import { ProgressPanel } from './progress-panel.js';
+import { ac } from './arena-copy.js';
 
 const $ = s => document.querySelector(s);
 const NT_COLOUR = {
@@ -33,6 +35,7 @@ const S = {
   duration: 8, autoNext: true, object: 'slipper',
   experiment: 'live', live: null, approach: 1.8, learning: true,
   cinematic: !matchMedia('(prefers-reduced-motion: reduce)').matches,
+  progress: null, requesting: false,
 };
 
 /* ------------------------------------------------------------------ boot */
@@ -40,7 +43,8 @@ async function boot() {
   const intro = new IntroGate(() => {
     S.entered = true;
     S.last = performance.now();
-    requestLive('next');
+    if (S.progress.data.game.pending) requestLive('game');
+    else if (S.progress.mode === 'lab') requestLive('next');
   });
   const step = (key, f) => {
     $('#loadLabel').dataset.i18n = key;
@@ -75,8 +79,19 @@ async function boot() {
     setCheckpoint(0);
 
     wire();
+    S.progress = new ProgressPanel(requestLive, () => {
+      S.playing = false;
+      S.live.episode = null;
+      $('#btnPlay').textContent = t('defend.btn.play');
+      clearLiveSignal(); paintLiveStats();
+      experimentLabels();
+      $('#hudWiring').textContent = t(S.progress.mode === 'game' ? 'live.evaluation' : 'live.training');
+      $('#learning').checked = S.progress.mode === 'lab' && S.learning;
+      if (S.progress.mode === 'lab' && S.entered) requestLive('next');
+    });
     switchMode('3d');
     selectExperiment('live');
+    await requestLive('init', { checkpoint: S.progress.data.checkpoint });
     paintLiveStats();
     intro.ready();
     S.last = performance.now();
@@ -288,9 +303,9 @@ function paintSignal(s) {
 
 function paintProbs(p, chosen) {
   const box = $('#probs');
-  if (!box.children.length) {
-    box.innerHTML = S.rec.actions.map((_, i) =>
-      `<li><span class="pl" data-i18n="defend.act.${i}">${t(`defend.act.${i}`)}</span>` +
+  if (box.children.length !== p.length) {
+    box.innerHTML = p.map((_, i) =>
+      `<li><span class="pl">${p.length === 8 ? ac('actions')[i] : t(`defend.act.${i}`)}</span>` +
       `<span class="pb"><i></i></span><span class="pv mono"></span></li>`).join('');
   }
   [...box.children].forEach((li, i) => {
@@ -358,6 +373,12 @@ function paintArc() {
 function wire() {
   $('#btnPlay').addEventListener('click', () => {
     if (S.experiment === 'live') {
+      if (!S.live?.episode) {
+        if (S.progress.mode === 'lab') requestLive('next');
+        else if (S.progress.data.game.pending) requestLive('game');
+        else $('#btnBet').focus();
+        return;
+      }
       if (S.live?.finished) restartLive();
       S.playing = !S.playing;
       $('#btnPlay').textContent = t(S.playing ? 'defend.btn.pause' : 'defend.btn.play');
@@ -397,7 +418,8 @@ function wire() {
     if (S.cinematic) S.views['3d'][0]?.view.resetCamera();
   });
   $('#btnTrain').addEventListener('click', () => requestLive('train'));
-  $('#btnNew').addEventListener('click', () => requestLive('reset'));
+  $('#btnNew').addEventListener('click', () => { if (confirm(ac('confirmErase'))) requestLive('reset'); });
+  $('#intense').addEventListener('change', e => { for (const v of S.views['3d']) if (v) v.intense = e.target.checked; });
   $('#btnDim').addEventListener('click', () => switchMode(S.mode === '2d' ? '3d' : '2d'));
   $('#btnCamera').addEventListener('click', () => {
     for (const v of S.views['3d']) v?.view.resetCamera();
@@ -431,7 +453,7 @@ function wire() {
   const sel = $('#lang');
   sel.innerHTML = Object.keys(LOCALES).map(c => `<option value="${c}">${LOCALES[c]['lang.name']}</option>`).join('');
   sel.value = getLocale();
-  sel.addEventListener('change', () => { setLocale(sel.value); applyDom(); relabel(); });
+  sel.addEventListener('change', () => { setLocale(sel.value); $('#probs').replaceChildren(); applyDom(); relabel(); S.progress?.paint(); });
   bindInfo();
   relabel();
 }
@@ -546,6 +568,7 @@ function experimentLabels() {
   $('.brand h1').textContent = t(live ? 'live.title' : 'app.scenario');
   $('.scene-title').textContent = t(live ? 'live.sceneTitle' : 'scene.escape');
   $('#sourceNote').textContent = t(live ? 'live.source' : 'defend.replay.note');
+  if (live && S.progress?.mode === 'game') $('#sourceNote').textContent = ac('gameSource');
   $('#timeNote').textContent = t(live ? 'live.timeNote' : 'defend.time.note');
   $('#mEpLabel').textContent = t(live ? 'live.trained' : 'defend.stat.eps');
   $('#mScoreLabel').textContent = t(live ? 'live.recent' : 'defend.stat.escaped');
@@ -557,7 +580,7 @@ function clearLiveSignal() {
   S.brain.act.fill(0);
   lightSnapshot(null, null);
   paintSignal({ gf: 0, l: 0, r: 0, u: 0 });
-  paintProbs([0.25, 0.25, 0.25, 0.25], -1);
+  paintProbs(Array(8).fill(1 / 8), -1);
 }
 
 function restartLive() {
@@ -582,7 +605,7 @@ function selectExperiment(mode) {
     if (!S.live) S.live = new LiveSession(n => { $('#viewStatus').textContent = t('live.progress', { n }); });
     S.live.observation = -1;
     clearLiveSignal();
-    if (!S.live.episode && S.entered) requestLive('next');
+    if (!S.live.episode && S.entered && S.progress?.mode !== 'game') requestLive('next');
     else paintLiveStats();
   } else {
     $('#viewStatus').textContent = '';
@@ -592,12 +615,24 @@ function selectExperiment(mode) {
   experimentLabels();
 }
 
-async function requestLive(type) {
-  if (!S.live || S.live.busy) return;
+async function requestLive(type, options = {}) {
+  if (!S.live || S.live.busy || S.requesting) return;
+  const progress = S.progress;
+  if (progress?.mode === 'game' && !['init', 'game'].includes(type)) return;
+  S.requesting = true;
+  progress?.lock(true);
   $('#viewStatus').textContent = t(type === 'train' ? 'live.progress' : 'live.loading', { n: 0 });
   for (const id of ['btnTrain', 'btnNew', 'btnRestart']) $(`#${id}`).disabled = true;
   try {
-    await S.live.request(type, { approach: S.approach, training: S.learning });
+    const bet = progress?.data.game.pending;
+    if (type === 'game' && !bet) return;
+    const result = await S.live.request(type, type === 'game' ? { approach: bet.approach, roam: bet.roam, training: false, seed: bet.seed, checkpoint: bet.checkpoint } :
+      { approach: S.approach, roam: Number($('#roamTime').value), training: S.learning, ...options });
+    if (type === 'game') result.episode.gameRound = progress.data.game.rounds + 1;
+    try { await progress.accept(result, type); }
+    catch (e) { progress.error(e); S.playing = false; throw e; }
+    if (type !== 'init') S.playing = !!result.episode && (S.playing || !matchMedia('(prefers-reduced-motion: reduce)').matches);
+    $('#btnPlay').textContent = t(S.playing ? 'defend.btn.pause' : 'defend.btn.play');
     if (S.experiment !== 'live') return;
     S.views['3d'][0].reset();
     clearLiveSignal();
@@ -612,14 +647,16 @@ async function requestLive(type) {
       $('#viewStatus').textContent = `${t('live.error')} ${error.message}`;
     }
   } finally {
+    S.requesting = false;
     for (const id of ['btnTrain', 'btnNew', 'btnRestart']) $(`#${id}`).disabled = false;
+    progress?.lock(false);
   }
 }
 
 function loopLive(dt) {
   const live = S.live, ep = live?.episode;
   if (!ep) return;
-  const k = S.playing && !live.busy ? dt * S.speed * ep.duration / S.duration : 0;
+  const k = S.playing && !live.busy && !S.requesting ? dt * S.speed * ep.duration / S.duration : 0;
   const wasFinished = live.finished;
   live.time = Math.min(ep.duration, live.time + k);
   while (live.observation + 1 < ep.observations.length && ep.observations[live.observation + 1].t <= live.time) {
@@ -629,11 +666,16 @@ function loopLive(dt) {
   const frame = live.frame;
   if (frame.hit || live.finished) markVerdict($('#paneA'), !frame.hit);
   else { $('#paneA [data-verdict]').textContent = ''; }
-  $('#paneA [data-ep]').textContent = t('live.attempt', { n: ep.trials });
+  $('#paneA [data-ep]').textContent = t('live.attempt', { n: S.progress.mode === 'game' ? (ep.gameRound || 1) : ep.trials });
   $('#hudAngle').textContent = t('live.arena');
   $('#hudGlance').textContent = t(frame.hit ? 'live.hit' : frame.air > 0.1 ? 'live.flying' : live.time < 0.55 ? 'live.throwing' : 'live.grounded');
   $('#hudWiring').textContent = t(ep.training ? 'live.training' : 'live.evaluation');
   $('#playbackTime').textContent = `${(live.time / ep.duration * S.duration / S.speed).toFixed(1)} / ${(S.duration / S.speed).toFixed(1)} s`;
+  if (S.progress.mode === 'lab') {
+    const lived = (ep.before.lifeSeconds || 0) + Math.min(live.time, ep.contactAt ?? ep.duration);
+    $('#lifeSeconds').textContent = `${lived.toFixed(1)} s`;
+    $('#bestLife').textContent = `${Math.max(ep.before.bestLife || 0, lived).toFixed(1)} s`;
+  }
   if (!document.hidden) {
     S.views['3d'][0].drawLive(frame, ep, k, S.cinematic);
     if (k > 0) decayBrain(k);
@@ -641,15 +683,25 @@ function loopLive(dt) {
     S.inspector.draw();
   }
   if (!wasFinished && live.finished) {
+    if (S.progress.mode === 'game') S.progress.settle(ep.ok);
     paintLiveStats();
-    if (!S.autoNext) { S.playing = false; $('#btnPlay').textContent = t('defend.btn.play'); }
+    if (!S.autoNext || S.progress.mode === 'game') { S.playing = false; $('#btnPlay').textContent = t('defend.btn.play'); }
   }
-  if (live.finished && S.playing && S.autoNext && !live.busy) requestLive('next');
+  if (live.finished && S.playing && S.autoNext && !live.busy && S.progress.mode === 'lab') requestLive('next');
 }
 
 function paintLiveStats() {
   const ep = S.live?.episode;
-  const stats = ep ? (S.live.finished ? ep : ep.before) : { trained: 0, streak: 0, best: 0, deaths: 0, history: [] };
+  const saved = S.progress?.data.checkpoint;
+  const baseline = saved ? { ...saved.stats, trained: saved.policy.episodes, history: saved.history } : { trained: 0, trials: 0, streak: 0, best: 0, deaths: 0, history: [] };
+  const stats = ep && S.progress?.mode !== 'game' ? (S.live.finished ? ep : ep.before) : baseline;
+  const escapes = stats.trials - stats.deaths;
+  $('#totalEscapes').textContent = escapes;
+  $('#totalDeaths').textContent = stats.deaths;
+  $('#kdRatio').textContent = stats.deaths ? (escapes / stats.deaths).toFixed(2) : escapes ? '∞' : '—';
+  $('#totalRate').textContent = stats.trials ? `${Math.round(escapes / stats.trials * 100)}%` : '—';
+  $('#lifeSeconds').textContent = `${(stats.lifeSeconds || 0).toFixed(1)} s`;
+  $('#bestLife').textContent = `${(stats.bestLife || 0).toFixed(1)} s`;
   const recent = stats.history.slice(-50);
   $('#mEp').textContent = stats.trained;
   $('#mScore').textContent = recent.length ? `${Math.round(recent.reduce((a, b) => a + b, 0) / recent.length * 100)}%` : '—';
