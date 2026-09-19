@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { loadRig, mulberry } from './rig.mjs';
 import { PlaySession, packPolicy, unpackPolicy, PROTOCOL } from '../web/play/core.js';
 import { SurvivalWorld } from '../web/defend/survival.js';
@@ -45,4 +46,3 @@ for (const seed of [883, 1549, 2671, 3917, 4513]) {
 console.log('ARTIFACT ' + JSON.stringify({ protocol: PROTOCOL, training: { seed: 81473, taskSeed: 124778, episodes, algorithm: 'REINFORCE-inspired, 49 neural + 8 constructed visual/proprioceptive features; frozen FlyWire wiring' },
   evaluation: { rows, limitation: 'Exploratory held-out simulation, one training seed, shared shot seeds. Not a biological validation or evidence that the connectome is necessary. Random/still controls share shots and starting poses.' },
   policy }));
-import { readFileSync } from 'node:fs';

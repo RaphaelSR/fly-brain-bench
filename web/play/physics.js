@@ -1,4 +1,4 @@
-import { SurvivalWorld, WORLD_STEP, WINDUP } from '../defend/survival.js';
+import { SurvivalWorld, WORLD_STEP, WINDUP } from '../defend/survival.js?v=play1';
 export { WORLD_STEP };
 
 export const SHOT_SECONDS = 3.6;
