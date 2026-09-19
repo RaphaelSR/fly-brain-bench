@@ -12,14 +12,14 @@
 </head>
 <body class="bench">
 
-<div id="boot">
+<div id="boot" role="dialog" aria-modal="true" aria-labelledby="introTitle">
   <div class="boot-inner">
     <header class="boot-head">
       <div class="boot-top">
         <p class="eyebrow" data-i18n="boot.eyebrow"></p>
         <select id="langBoot" class="lang" aria-label="Language"></select>
       </div>
-      <h1 data-i18n-html="boot.headline"></h1>
+      <h1 id="introTitle" data-i18n-html="boot.headline"></h1>
     </header>
     <div class="primer">
       <article class="card c1">
@@ -52,6 +52,8 @@
         <div class="load-row"><span id="loadLabel"></span><span id="loadPct" class="mono">0%</span></div>
         <div class="track"><div id="loadBar"></div></div>
         <p id="loadDetail" data-i18n="boot.detail"></p>
+        <p id="introHint" class="intro-hint" role="status" data-i18n="intro.loading"></p>
+        <button id="btnEnter" class="intro-enter" disabled data-i18n="intro.bench">Enter the bench</button>
       </div>
     </div>
   </div>

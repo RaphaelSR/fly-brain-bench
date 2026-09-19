@@ -97,6 +97,29 @@ yourself.
 
 ## Survival arena and recorded benchmark — `/defend`
 
+Both entry screens keep their introduction visible until **Enter** is pressed.
+Loading happens in the background; neither neural time nor survival attempts
+advance behind the introduction. Keyboard focus stays in the introduction until
+entry, then moves to the playback control.
+
+The arena's neural inspector uses the same WebGL renderer as the bench, with a
+larger, expandable viewport, annotated population labels, transmitter legend and
+click-to-inspect cells. It displays the **6,203-cell escape subcircuit**, not an
+invented whole-brain silhouette. All these cells have valid annotation positions,
+verified against the local source table by `tools/check_position_provenance.py`.
+The full bench omits the 14 cells without annotated positions from the rendering
+(and region centroids), while retaining them in the neural simulation.
+
+Connection lines come only from the packed directed CSR. They are schematic
+links between neuron positions, **not axon reconstructions or individual synapse
+locations**. For readability the inspector shows at most 160 adjacent links with
+the strongest packed weights and reports the displayed/available counts. The
+subcircuit package retains pairs with at least 8 synapses and caps weights at 127.
+The shuffled control hides empirical connection lines rather than combining them
+with rewired activity. Neural glow summarizes normalized per-observation spike
+snapshots and visually fades; it does not imply an exact propagation timeline or
+a biological recording.
+
 The default is an open 3D courtyard. A procedural hand throws a flip-flop at the
 fly's position at release; the projectile does not home in on her. She can lean,
 jump laterally, land elsewhere, and face another throw from that location.

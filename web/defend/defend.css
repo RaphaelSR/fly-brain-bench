@@ -46,6 +46,29 @@ body.defend main{display:grid; grid-template-columns:minmax(0,1fr) 318px; min-he
 .transport .slider .mono{min-width:35px}
 input[type=range]:focus-visible{outline:2px solid var(--ach);outline-offset:5px}
 body.defend .rail{padding-top:0}
+body.defend main{grid-template-columns:minmax(0,1fr) clamp(340px,32vw,460px)}
+.brain-card{flex:none}
+.brain-card h2{color:var(--ink2);margin-bottom:0}
+.brain-card .brain-count{font-size:11px;color:var(--ink2);line-height:1.5}
+.brain-tools{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:11px;color:var(--ink2)}
+.brain-tools label{display:flex;align-items:center;gap:6px}
+.brain-tools select{max-width:145px;background:var(--well);color:var(--ink);border:1px solid var(--line2);padding:7px;border-radius:5px}
+.brain-tools button{font-size:11px;padding:6px 9px}
+.brain-viewport{position:relative;height:clamp(240px,32vh,340px);background:var(--well);border:1px solid var(--line);border-radius:8px;overflow:hidden;flex:none}
+.brain-viewport #brain{position:absolute;inset:0;height:100%;width:100%;min-height:0;touch-action:none}
+#brainOverlay,#brainLabels{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#brainLabels span{position:absolute;top:0;left:0;font:10px var(--fm);color:var(--hot);background:#101a1edb;padding:3px 5px;border-radius:4px;translate:-50% -50%;white-space:nowrap}
+.brain-card .brain-legend{font-size:10px;color:var(--ink2)}
+.brain-nt{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:10px;color:var(--ink2)}
+.brain-nt span{display:flex;align-items:center;gap:5px}
+.brain-nt i{height:6px;width:6px;border-radius:50%;display:inline-block}
+.brain-card .brain-detail{font-size:12px;color:var(--hot);min-height:36px}
+.brain-method{font-size:11px;color:var(--ink2);line-height:1.6}
+.brain-method summary{cursor:pointer;color:var(--ach)}
+.brain-method p{font-size:11px;margin:8px 0}
+.brain-card.expanded{position:fixed;inset:12px;z-index:40;background:var(--panel);overflow:auto;box-shadow:0 0 0 30px #070c0fcc}
+.brain-card.expanded .brain-viewport{height:calc(100svh - 315px);min-height:250px}
+.boot-card{padding:30px 0}
 
 .stage-hud{position:absolute; left:0; right:0; bottom:0; display:flex; gap:20px;
   padding:9px 16px; font-size:11px; color:var(--ink3); pointer-events:none;

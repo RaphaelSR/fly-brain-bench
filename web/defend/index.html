@@ -14,14 +14,17 @@
 </head>
 <body class="defend">
 
-<div id="boot">
+<div id="boot" role="dialog" aria-modal="true" aria-labelledby="introTitle">
   <div class="boot-card">
     <p class="eyebrow">Drosophila melanogaster &middot; FlyWire v783</p>
-    <h1 data-i18n="defend.boot.h1">Something is coming.</h1>
+    <h1 id="introTitle" data-i18n="defend.boot.h1">Something is coming.</h1>
     <p class="sub" data-i18n="defend.boot.sub">At first she has no idea what to do about it.</p>
     <div class="track"><div id="loadBar"></div></div>
     <p id="loadLabel" class="mono"></p>
     <p id="loadDetail" class="fine" data-i18n="live.boot">Loading the escape circuit and the physical arena.</p>
+    <p class="intro-explain" data-i18n="intro.arenaExplain"></p>
+    <p id="introHint" class="intro-hint" role="status" data-i18n="intro.loading"></p>
+    <button id="btnEnter" class="intro-enter" disabled data-i18n="intro.arena">Enter the arena</button>
   </div>
 </div>
 
@@ -90,6 +93,30 @@
   </section>
 
   <aside class="rail">
+    <section class="card brain-card" id="brainCard">
+      <h2><span data-i18n="brain.title">The escape circuit</span><span id="mActive" class="mono dim"></span></h2>
+      <p id="brainCount" class="brain-count mono"></p>
+      <div class="brain-tools">
+        <label><span data-i18n="brain.focus">Inspect</span><select id="brainFocus">
+          <option value="all" data-i18n="brain.all">Whole circuit</option>
+          <option value="LPLC2">LPLC2</option><option value="DNp01" selected>DNp01</option>
+          <option value="cell" disabled data-i18n="brain.selected">Selected neuron</option>
+        </select></label>
+        <button id="brainExpand" class="ghost" aria-expanded="false" aria-controls="brainCard" data-i18n="brain.expand">Expand</button>
+        <button id="brainReset" class="ghost" data-i18n="scene.reset">Reset camera</button>
+      </div>
+      <div class="brain-viewport">
+        <canvas id="brain" role="img" aria-label="FlyWire escape circuit"></canvas>
+        <canvas id="brainOverlay" aria-hidden="true"></canvas>
+        <div id="brainLabels" aria-hidden="true"></div>
+      </div>
+      <div id="brainNT" class="brain-nt"></div>
+      <div class="brain-tools"><label><input id="brainEdges" type="checkbox" checked><span data-i18n="brain.connections">Connections in the data</span></label></div>
+      <p id="brainEdgeCount" class="brain-count"></p>
+      <p class="brain-legend" data-i18n="brain.legend"></p>
+      <p id="brainDetail" class="brain-detail" role="status"></p>
+      <details class="brain-method"><summary data-i18n="brain.method">What is real here?</summary><p data-i18n="brain.provenance"></p><p data-i18n="brain.activity"></p></details>
+    </section>
     <section class="card">
       <h2><span data-i18n="defend.card.arc">The arc</span><button class="info" data-info="arc">i</button></h2>
       <canvas id="arcChart"></canvas>
@@ -112,11 +139,6 @@
       </div>
     </section>
 
-    <section class="card grow">
-      <h2><span data-i18n="defend.card.brain">Her brain</span><button class="info" data-info="brain">i</button>
-        <span id="mActive" class="mono dim"></span></h2>
-      <canvas id="brain"></canvas>
-    </section>
   </aside>
 </main>
 

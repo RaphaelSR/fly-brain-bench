@@ -2,7 +2,9 @@
    survival trials computed in a worker, and the original fixed probe recording.
    Their scores and protocols must not be presented as interchangeable. */
 
-import { fetchGz, decodeLabels, decodePositions } from '../js/data.js';
+import { fetchGz, decodeLabels, decodePositions, decodeConnectome } from '../js/data.js';
+import { IntroGate } from '../js/intro.js';
+import { BrainInspector } from './brain-inspector.js';
 import { LOCALES, detectLocale, setLocale, getLocale, t, applyDom } from '../js/i18n.js';
 import { BrainView } from '../js/gl.js';
 import { Threat, ArenaView } from './arena.js';
@@ -27,7 +29,7 @@ const S = {
   brain: null, geom: null, labels: null, meta: null,
   actTarget: null, nActive: 0,
   playing: !matchMedia('(prefers-reduced-motion: reduce)').matches, speed: 1, compare: false, follow: true,
-  last: 0, cp: 0,
+  last: 0, cp: 0, entered: false, inspector: null,
   duration: 8, autoNext: true, object: 'slipper',
   experiment: 'live', live: null, approach: 1.8, learning: true,
   cinematic: !matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -35,6 +37,11 @@ const S = {
 
 /* ------------------------------------------------------------------ boot */
 async function boot() {
+  const intro = new IntroGate(() => {
+    S.entered = true;
+    S.last = performance.now();
+    requestLive('next');
+  });
   const step = (key, f) => {
     $('#loadLabel').dataset.i18n = key;
     $('#loadLabel').textContent = t(key);
@@ -53,20 +60,14 @@ async function boot() {
     step('defend.load.run', 0.65);
     S.recs.real = await Recording.load('data/replay.json.gz');
     S.rec = S.recs.real;
+    const [connBytes, signs] = await Promise.all([fetchGz('data/conn.bin.gz'), fetchGz('data/sign.bin.gz')]);
+    const conn = decodeConnectome(connBytes, N, meta.n_edges, signs);
     step('defend.load.ready', 1);
 
     S.brain = new BrainView($('#brain'), S.geom.pos, S.labels.nt, S.geom.radius);
     S.brain.setNTColors(meta.dicts.top_nt.map(n => NT_COLOUR[n] || NT_COLOUR.unknown));
-    /* The escape subcircuit is 6,203 cells out of 138,639, so the resting cloud is
-       sparse where the whole brain is dense — it needs a brighter floor and a
-       closer camera than the bench does, or the anatomy the firing sits inside is
-       not visible at all. */
-    S.brain.baseAlpha = 0.46;
-    S.brain.pitch = 0.26;
-    S.brain.fitMargin = 1.04;
-    S.brain.bloom = 1.15;              // a sparse cloud can carry more glow
-    S.brain.bloomThreshold = 0.38;
     S.actTarget = new Float32Array(N);
+    S.inspector = new BrainInspector(S.brain, meta, S.labels, conn);
 
     S.views['2d'] = [new ArenaView($('#paneA canvas.v2d')), new ArenaView($('#paneB canvas.v2d'))];
     S.A = new Player(S.rec);
@@ -76,9 +77,8 @@ async function boot() {
     wire();
     switchMode('3d');
     selectExperiment('live');
-    paintArc();
-    $('#boot').classList.add('done');
-    setTimeout(() => $('#boot').remove(), 600);
+    paintLiveStats();
+    intro.ready();
     S.last = performance.now();
     schedule();
   } catch (err) {
@@ -157,6 +157,7 @@ function loop(now) {
      surfaced as an IndexSizeError from canvas and a dead render loop. */
   const dt = Math.max(0, Math.min((now - S.last) / 1000, 0.05));
   S.last = now;
+  if (!S.entered) { schedule(); return; }
   if (S.experiment === 'live') { loopLive(dt); schedule(); return; }
   const length = S.rec.glances * BEAT + VERDICT;
   const k = S.playing ? dt * S.speed * length / S.duration : 0;
@@ -206,6 +207,7 @@ function loop(now) {
     if (S.compare) drawPane(view(1), S.B, S.threatB, advance ? 0 : k);
     if (S.playing) decayBrain(k);
     S.brain.draw(dt);
+    S.inspector.draw();
   }
   schedule();
 }
@@ -485,6 +487,7 @@ async function swapWiring() {
     btn.setAttribute('aria-pressed', String(shuffled));
     $('#hudWiring').textContent = t(shuffled ? 'defend.wiring.shuf' : 'defend.wiring.real');
     document.body.classList.toggle('shuffled', shuffled);
+    S.inspector.setWiring(S.experiment === 'replay' && shuffled);
   }
 }
 
@@ -530,6 +533,7 @@ function relabel() {
   applyCheckpoint();
   armRun(S.A.angle);
   experimentLabels();
+  S.inspector?.relabel();
   if (S.experiment === 'live') {
     if (S.live) S.live.observation = -1;
     clearLiveSignal();
@@ -550,6 +554,7 @@ function experimentLabels() {
 }
 
 function clearLiveSignal() {
+  S.brain.act.fill(0);
   lightSnapshot(null, null);
   paintSignal({ gf: 0, l: 0, r: 0, u: 0 });
   paintProbs([0.25, 0.25, 0.25, 0.25], -1);
@@ -566,6 +571,7 @@ function restartLive() {
 function selectExperiment(mode) {
   if (mode === 'live' && !ensure3D(0)) { $('#experiment').value = 'replay'; mode = 'replay'; }
   S.experiment = mode;
+  S.inspector.setWiring(mode === 'replay' && S.wiring === 'shuf');
   document.body.classList.toggle('live-mode', mode === 'live');
   document.body.classList.toggle('shuffled', mode === 'replay' && S.wiring === 'shuf');
   S.compare = false; $('#paneB').hidden = true; $('#arenas').classList.remove('split');
@@ -576,7 +582,7 @@ function selectExperiment(mode) {
     if (!S.live) S.live = new LiveSession(n => { $('#viewStatus').textContent = t('live.progress', { n }); });
     S.live.observation = -1;
     clearLiveSignal();
-    if (!S.live.episode) requestLive('next');
+    if (!S.live.episode && S.entered) requestLive('next');
     else paintLiveStats();
   } else {
     $('#viewStatus').textContent = '';
@@ -632,6 +638,7 @@ function loopLive(dt) {
     S.views['3d'][0].drawLive(frame, ep, k, S.cinematic);
     if (k > 0) decayBrain(k);
     S.brain.draw(dt);
+    S.inspector.draw();
   }
   if (!wasFinished && live.finished) {
     paintLiveStats();

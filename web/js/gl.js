@@ -20,6 +20,7 @@ in float aAct;      // 0..1 recent spiking
 in float aNT;       // neurotransmitter index
 in float aSel;      // 1 = in the stimulated set
 in float aDim;      // 0 = filtered out
+in float aValid;    // 0 = no annotated position: never draw an invented location
 uniform mat4 uMVP;
 uniform float uPointScale;
 uniform float uBaseAlpha;
@@ -45,6 +46,7 @@ void main() {
   // brightness lives entirely in rgb because the blend is additive
   vRGB = hot * (uBaseAlpha * aDim * depth + act * 2.2 + aSel * 0.6);
   vAct = act + aSel * 0.45;
+  if (aValid < 0.5) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); vRGB = vec3(0.0); }
 }`;
 
 const FS = `#version 300 es
@@ -171,12 +173,14 @@ export class BrainView {
     this.act = new Float32Array(this.N);
     this.sel = new Float32Array(this.N);
     this.dim = new Float32Array(this.N).fill(1);
+    this.valid = new Float32Array(this.N).fill(1);
     const ntf = new Float32Array(this.N);
     for (let i = 0; i < this.N; i++) ntf[i] = nt[i];
     this.bufAct = attrib(gl, this.prog, 'aAct', this.act, 1, gl.DYNAMIC_DRAW);
     this.bufNT  = attrib(gl, this.prog, 'aNT', ntf, 1);
     this.bufSel = attrib(gl, this.prog, 'aSel', this.sel, 1, gl.DYNAMIC_DRAW);
     this.bufDim = attrib(gl, this.prog, 'aDim', this.dim, 1, gl.DYNAMIC_DRAW);
+    this.bufValid = attrib(gl, this.prog, 'aValid', this.valid, 1, gl.DYNAMIC_DRAW);
     gl.bindVertexArray(null);
 
     this.uMVP = gl.getUniformLocation(this.prog, 'uMVP');
@@ -397,6 +401,10 @@ export class BrainView {
   uploadAct() { upload(this.gl, this.bufAct, this.act); }
   uploadSel() { upload(this.gl, this.bufSel, this.sel); }
   uploadDim() { upload(this.gl, this.bufDim, this.dim); }
+  hideMissingPositions(indices) {
+    for (const i of indices) this.valid[i] = 0;
+    upload(this.gl, this.bufValid, this.valid);
+  }
 
   /* world point -> CSS pixels inside the canvas, or null when behind the camera */
   project(p) {
@@ -418,6 +426,7 @@ export class BrainView {
     let best = -1, bestD = 26 * dpr * (26 * dpr);
     const p = this.pos;
     for (let i = 0; i < this.N; i++) {
+      if (!this.valid[i]) continue;
       if (this.dim[i] < 0.5 && this.sel[i] < 0.5 && this.act[i] < 0.05) continue;
       const ox = p[i * 3], oy = p[i * 3 + 1], oz = p[i * 3 + 2];
       const cw = m[3] * ox + m[7] * oy + m[11] * oz + m[15];

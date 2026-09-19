@@ -756,6 +756,67 @@ const ES = {
   "scene.unavailable": "El 3D no está disponible en este dispositivo. Prueba un navegador con WebGL2 habilitado.",
 };
 
+Object.assign(EN, {
+  'intro.loading': 'Loading in the background. Read at your own pace.',
+  'intro.ready': 'Ready when you are. The simulation starts only after you enter.',
+  'intro.bench': 'Enter the bench', 'intro.arena': 'Enter the arena',
+  'intro.arenaExplain': 'A hand throws a flip-flop. The fly can jump away, land elsewhere and try to survive the next throw. A policy learns from these attempts using activity simulated on measured brain wiring. Movement and collisions are engineered approximations.',
+  'brain.title': 'The escape circuit', 'brain.focus': 'Inspect', 'brain.all': 'Whole circuit',
+  'brain.selected': 'Selected neuron',
+  'brain.overview': 'All circuit positions. Select a population or click a neuron to reveal its connections.',
+  'brain.expand': 'Expand', 'brain.collapse': 'Close expanded view',
+  'brain.connections': 'Show recorded connections', 'brain.count': '{n} neurons · {e} directed connections',
+  'brain.edges': '{name} · showing {n} of {total} adjacent connections (strongest packed weights).',
+  'brain.shuffled': 'Shuffled control: experimental rewiring, not measured anatomy. Connection lines hidden.',
+  'brain.index': 'local index {n}', 'brain.left': 'left', 'brain.right': 'right',
+  'brain.hint': 'Drag to rotate · click a neuron to inspect · scroll after clicking to zoom.',
+  'brain.legend': 'Lines: amber leaves the selection; teal enters it. Points: colour = transmitter; glow = activity summary; rings = inspected cells.',
+  'brain.method': 'What is real here?',
+  'brain.provenance': 'FlyWire v783. These are 6,203 annotated neuron positions, not the whole brain. Lines are schematic links between those positions, not reconstructed axons or individual synapse locations. Only connections in the packaged dataset are shown (at least 8 synapses per pair; packed weights capped at 127). Up to 160 strongest adjacent links are displayed. No connections are inferred from proximity.',
+  'brain.activity': 'Glow summarizes simulated spikes per observation, normalized within that observation, with a visual fade. It is not a live biological recording or an exact propagation timeline. Snapshots retain up to 1,400 cells above 4 Hz. The labels sit at the annotated populations’ mean positions.',
+  'defend.firing': '{n} in sample',
+});
+Object.assign(PT, {
+  'intro.loading': 'Carregando ao fundo. Leia no seu ritmo.',
+  'intro.ready': 'Tudo pronto. A simulação só começa quando você entrar.',
+  'intro.bench': 'Entrar na bancada', 'intro.arena': 'Entrar na arena',
+  'intro.arenaExplain': 'Uma mão arremessa um chinelo. A mosca pode saltar, pousar em outro lugar e tentar sobreviver ao próximo arremesso. Uma política aprende com as tentativas usando atividade simulada sobre conexões cerebrais medidas. Movimento e colisões são aproximações construídas.',
+  'brain.title': 'O circuito de fuga', 'brain.focus': 'Inspecionar', 'brain.all': 'Circuito inteiro',
+  'brain.selected': 'Neurônio selecionado',
+  'brain.overview': 'Todas as posições do circuito. Selecione uma população ou clique num neurônio para revelar suas conexões.',
+  'brain.expand': 'Ampliar', 'brain.collapse': 'Fechar ampliação',
+  'brain.connections': 'Mostrar conexões registradas', 'brain.count': '{n} neurônios · {e} conexões direcionadas',
+  'brain.edges': '{name} · exibindo {n} de {total} conexões adjacentes (maiores pesos do pacote).',
+  'brain.shuffled': 'Controle embaralhado: conexões experimentais, não anatomia medida. Linhas ocultas.',
+  'brain.index': 'índice local {n}', 'brain.left': 'esquerda', 'brain.right': 'direita',
+  'brain.hint': 'Arraste para girar · clique num neurônio para inspecionar · role após clicar para aproximar.',
+  'brain.legend': 'Linhas: âmbar sai da seleção; azul-verde entra nela. Pontos: cor = transmissor; brilho = resumo da atividade; anéis = células inspecionadas.',
+  'brain.method': 'O que é real aqui?',
+  'brain.provenance': 'FlyWire v783. São 6.203 posições anotadas de neurônios, não o cérebro inteiro. As linhas ligam essas posições esquematicamente: não são axônios reconstruídos nem a localização de cada sinapse. Só aparecem conexões do conjunto empacotado (mínimo de 8 sinapses por par; pesos limitados a 127 no pacote). Exibimos até 160 ligações adjacentes de maior peso. Nenhuma conexão é inferida por proximidade.',
+  'brain.activity': 'O brilho resume disparos simulados por observação, normalizados dentro dela, com desvanecimento visual. Não é uma gravação biológica ao vivo nem uma cronologia exata da propagação. As amostras retêm até 1.400 células acima de 4 Hz. As legendas ficam na posição média das populações anotadas.',
+  'defend.firing': '{n} na amostra',
+});
+Object.assign(ES, {
+  'intro.loading': 'Cargando en segundo plano. Lee a tu ritmo.',
+  'intro.ready': 'Todo listo. La simulación empieza solo cuando entres.',
+  'intro.bench': 'Entrar al banco', 'intro.arena': 'Entrar a la arena',
+  'intro.arenaExplain': 'Una mano lanza una chancla. La mosca puede saltar, aterrizar en otro lugar y sobrevivir al siguiente lanzamiento. Una política aprende usando actividad simulada sobre conexiones cerebrales medidas. El movimiento y las colisiones son aproximaciones construidas.',
+  'brain.title': 'El circuito de escape', 'brain.focus': 'Inspeccionar', 'brain.all': 'Circuito completo',
+  'brain.selected': 'Neurona seleccionada',
+  'brain.overview': 'Todas las posiciones del circuito. Selecciona una población o pulsa una neurona para revelar sus conexiones.',
+  'brain.expand': 'Ampliar', 'brain.collapse': 'Cerrar ampliación',
+  'brain.connections': 'Mostrar conexiones registradas', 'brain.count': '{n} neuronas · {e} conexiones dirigidas',
+  'brain.edges': '{name} · mostrando {n} de {total} conexiones adyacentes (mayores pesos del paquete).',
+  'brain.shuffled': 'Control barajado: conexiones experimentales, no anatomía medida. Líneas ocultas.',
+  'brain.index': 'índice local {n}', 'brain.left': 'izquierda', 'brain.right': 'derecha',
+  'brain.hint': 'Arrastra para girar · pulsa una neurona para inspeccionar · desplaza tras pulsar para acercar.',
+  'brain.legend': 'Líneas: ámbar sale de la selección; turquesa entra. Puntos: color = transmisor; brillo = resumen de actividad; anillos = células inspeccionadas.',
+  'brain.method': '¿Qué es real aquí?',
+  'brain.provenance': 'FlyWire v783. Son 6.203 posiciones anotadas de neuronas, no todo el cerebro. Las líneas son enlaces esquemáticos, no axones reconstruidos ni ubicaciones de sinapsis individuales. Solo se muestran conexiones del paquete (al menos 8 sinapsis por par; pesos limitados a 127). Se muestran hasta 160 enlaces adyacentes de mayor peso. No se infieren conexiones por proximidad.',
+  'brain.activity': 'El brillo resume espigas simuladas por observación, normalizadas dentro de ella, con desvanecimiento visual. No es una grabación biológica en vivo ni una cronología exacta de propagación. Las muestras retienen hasta 1.400 células por encima de 4 Hz. Las etiquetas están en la posición media de las poblaciones anotadas.',
+  'defend.firing': '{n} en la muestra',
+});
+
 export const LOCALES = { en: EN, pt: PT, es: ES };
 let current = 'en';
 
