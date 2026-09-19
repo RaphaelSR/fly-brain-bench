@@ -1,6 +1,7 @@
 /* Three locales. Keys are flat; {n} style placeholders are filled by t(). */
 
 const EN = {
+  "app.scenario": "Escape Reflex",
   "region.optic": "Optic lobe",
   "region.central": "Central brain",
   "region.sez": "Taste centre",
@@ -157,6 +158,7 @@ const EN = {
 };
 
 const PT = {
+  "app.scenario": "Reflexo de Fuga",
   "region.optic": "Lobo óptico",
   "region.central": "Cérebro central",
   "region.sez": "Centro do paladar",
@@ -313,6 +315,7 @@ const PT = {
 };
 
 const ES = {
+  "app.scenario": "Reflejo de Huida",
   "region.optic": "Lóbulo óptico",
   "region.central": "Cerebro central",
   "region.sez": "Centro del gusto",

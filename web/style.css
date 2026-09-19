@@ -413,3 +413,7 @@ main{grid-template-columns:var(--rail) minmax(0,1fr) var(--railR)}
 @media (prefers-reduced-motion:reduce){
   *{animation:none !important; transition:none !important}
 }
+
+/* link out to a scenario page */
+.ghost.scenario{text-decoration:none; display:inline-flex; align-items:center; white-space:nowrap}
+.ghost.scenario:hover{border-color:var(--ach); color:var(--ach)}

@@ -135,17 +135,27 @@ function emit() {
   }, [buf.buffer]);
 }
 
-let acc = null, accN = 0;
+let acc = null, accN = 0, lastPost = 0;
+const POST_MS = 33;      // wall-clock cadence for frames to the main thread
+
 function tick() {
   if (!running) return;
-  // collect spikes across all sub-steps of this frame
+  // Accumulate spikes across sub-steps, but post on a wall clock rather than on
+  // every tick. Under load a tick can carry six figures of spikes, and posting
+  // each one starved the main thread badly enough to drop it to about 1 fps.
   if (!acc || acc.length < 1 << 18) acc = new Int32Array(1 << 18);
-  accN = 0;
   for (let s = 0; s < speed; s++) {
     advance();
     for (let k = 0; k < outCount && accN < acc.length; k++) acc[accN++] = outIdx[k];
   }
-  const buf = new Int32Array(accN); buf.set(acc.subarray(0, accN));
-  self.postMessage({ type: 'frame', spikes: buf, step, t: step * DT, nActive, totalSpikes }, [buf.buffer]);
+  const now = Date.now();
+  if (now - lastPost >= POST_MS) {
+    lastPost = now;
+    const buf = new Int32Array(accN);
+    buf.set(acc.subarray(0, accN));
+    accN = 0;
+    self.postMessage({ type: 'frame', spikes: buf, step, t: step * DT, nActive, totalSpikes },
+      [buf.buffer]);
+  }
   setTimeout(tick, 0);
 }

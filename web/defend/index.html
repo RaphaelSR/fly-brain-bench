@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escape Reflex</title>
+<meta name="description" content="Something is coming. Watch a real fruit fly connectome learn to get out of the way.">
+<meta name="theme-color" content="#0B1114">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="defend.css">
+</head>
+<body class="defend">
+
+<div id="boot">
+  <div class="boot-card">
+    <p class="eyebrow">Drosophila melanogaster &middot; FlyWire v783</p>
+    <h1>Something is coming.</h1>
+    <p class="sub">She does not know what to do about it yet.</p>
+    <div class="track"><div id="loadBar"></div></div>
+    <p id="loadLabel" class="mono"></p>
+    <p id="loadDetail" class="fine">Her escape circuit is the real one — 8 MB, cached after the first visit.</p>
+  </div>
+</div>
+
+<header class="top">
+  <div class="brand">
+    <span class="mark" aria-hidden="true"></span>
+    <div>
+      <h1>Escape Reflex</h1>
+      <p>LPLC2 &rarr; DNp01, the giant fibre &mdash; on a real connectome</p>
+    </div>
+  </div>
+  <div class="top-stats mono">
+    <span><b id="mEp">0</b> <i>episodes</i></span>
+    <span><b id="mSurv">0%</b> <i>survived</i></span>
+    <span><b id="mGF">0</b> <i>Hz DNp01</i></span>
+  </div>
+  <a class="ghost" href="../">&larr; Bench</a>
+</header>
+
+<main>
+  <section class="stage">
+    <canvas id="arena"></canvas>
+    <p id="verdict" class="verdict"></p>
+  </section>
+
+  <aside class="rail">
+    <section class="card">
+      <h2>The arc<button class="info" data-info="arc">i</button></h2>
+      <div id="strip" class="strip"></div>
+      <p id="arcNote" class="cap">No episodes yet. Press Train.</p>
+    </section>
+
+    <section class="card">
+      <h2>Her escape neuron<button class="info" data-info="gf">i</button></h2>
+      <div class="gauge"><i id="gfBar"></i></div>
+      <p class="cap mono"><span id="gfVal">0</span> Hz &middot; DNp01</p>
+      <div class="pair">
+        <label>Left eye</label><span class="meter"><i id="loomL"></i></span>
+        <label>Right eye</label><span class="meter"><i id="loomR"></i></span>
+      </div>
+    </section>
+
+    <section class="card grow">
+      <h2>Her brain<button class="info" data-info="brain">i</button>
+        <span id="mActive" class="mono dim"></span></h2>
+      <canvas id="brain"></canvas>
+    </section>
+  </aside>
+</main>
+
+<footer class="transport">
+  <button id="btnTrain" class="primary">Train</button>
+  <button id="btnReset" class="ghost">Forget</button>
+  <label class="slider">Speed
+    <input id="speed" type="range" min="1" max="6" step="1" value="2">
+    <span id="speedOut" class="mono">1&times;</span>
+  </label>
+  <span id="dockStat" class="mono dim"></span>
+</footer>
+
+<div id="infoPop" role="dialog"><h4></h4><p></p></div>
+<script type="module" src="page.js"></script>
+</body>
+</html>
