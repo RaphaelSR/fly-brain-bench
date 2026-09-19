@@ -66,7 +66,7 @@ export class Arena3D {
     this.cameraCut = true;
   }
 
-  drawLive(frame, episode, dt, cinematic = true) {
+  drawLive(frame, episode, dt, cinematic = true, framing = null) {
     const rig = this.view.rig;
     this.halo.visible = false; this.approach.visible = false; this.pulse.visible = false;
     this.setObject('slipper');
@@ -102,6 +102,11 @@ export class Arena3D {
       frame.z + (p.z - frame.z) * mix);
     if (this.cameraCut) { this.view.focus.copy(this.view.target); this.cameraCut = false; }
     this.view.cinematic = cinematic ? { distance: 10.5 + Math.min(6, gap) * 0.6, pitch: 0.43, yaw: 0.65 } : null;
+    if (framing) {
+      this.view.target.copy(framing.target); this.view.focus.copy(framing.target);
+      this.view.dist = framing.distance; this.view.pitch = framing.pitch; this.view.yaw = framing.yaw;
+      this.view.cinematic = null;
+    }
     this.view.draw(dt);
   }
 

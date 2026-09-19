@@ -67,6 +67,7 @@ export const CONTENT = {
       ['time', 'Aumentar a duração torna o teste mais fácil?', '“Duração da cena” e “Velocidade” mudam só a apresentação. “Voo do arremesso” e “Tempo livre” mudam a simulação física e podem mudar o resultado. Compare desempenhos apenas quando souber quais parâmetros foram mantidos iguais.', ['code']],
       ['points', 'Os palpites influenciam quem ganha ou o que ela aprende?', 'Não. A escolha fica fechada antes do cálculo e uma cópia congelada da política resolve a rodada. Não há ajuste de dificuldade para favorecer a casa. Os pontos são locais, gratuitos, editáveis por quem controla o navegador e sem valor financeiro.', ['code']],
       ['consciousness', 'Ela sente dor ou tem consciência?', 'O software não modela dor ou consciência, e sobreviver à colisão não demonstra experiência subjetiva. O fluido verde e a deformação são efeitos visuais opcionais; não são evidência de sofrimento, hemolinfa fiel ou anatomia interna.', ['code']],
+      ['play', 'E no modo em que eu arremesso?', 'A mosca anda e salta por regras durante a mira. Após lançar, uma política treinada recebe 49 atributos do circuito e 8 sinais visuais/corporais construídos; nunca sua mira, força ou trajetória futura. Acerto, esquiva e erro de mira são separados por um controle com mosca imóvel. Movimento anterior também pode evitar contato, então “esquiva” não prova inteligência. O treino é opcional e salvo separadamente do laboratório.', ['code']],
     ],
   },
   en: {
@@ -109,6 +110,7 @@ export const CONTENT = {
       ['time', 'Does a longer animation make the test easier?', 'Scene duration and speed affect presentation only. Throw flight and free time change physical simulation and can change outcomes. Compare results only when you know what stayed fixed.', ['code']],
       ['points', 'Do predictions change who wins or what she learns?', 'No. A prediction locks before computation and a frozen policy copy resolves it. There is no house-favoring difficulty adjustment. Points are free, local, user-editable and have no financial value.', ['code']],
       ['consciousness', 'Does she feel pain or have consciousness?', 'The software does not model pain or consciousness; collision avoidance is not evidence of subjective experience. Green fluid and deformation are optional visual effects, not evidence of suffering, faithful hemolymph or internal anatomy.', ['code']],
+      ['play', 'What about the mode where I throw?', 'Idle walking and hopping are scripted. After release, a trained policy receives 49 circuit features and 8 constructed visual/body signals; never your aim, power or future trajectory. Hits, dodges and aim misses are separated using an immobile-fly control. Existing motion can avoid contact too, so a “dodge” does not prove intelligence. Learning is optional and saved separately from the laboratory.', ['code']],
     ],
   },
   es: {
@@ -149,6 +151,7 @@ export const CONTENT = {
       ['time', '¿Alargar la animación facilita el ensayo?', 'Duración de escena y velocidad solo cambian la presentación. Vuelo de lanzamiento y tiempo libre cambian la simulación y pueden cambiar el resultado. Compara solo sabiendo qué parámetros permanecen iguales.', ['code']],
       ['points', '¿Los pronósticos influyen en el resultado o aprendizaje?', 'No. Se cierran antes del cálculo y se resuelven con una copia congelada. No hay ajuste para favorecer a la casa. Los puntos son gratuitos, locales, editables por el usuario y sin valor financiero.', ['code']],
       ['consciousness', '¿Siente dolor o tiene conciencia?', 'El software no modela dolor ni conciencia. Evitar colisiones no demuestra experiencia subjetiva. El fluido verde y la deformación son efectos opcionales, no evidencia de sufrimiento, hemolinfa fiel o anatomía interna.', ['code']],
+      ['play', '¿Y el modo donde yo lanzo?', 'Caminar y saltar mientras apuntas está programado. Tras lanzar, una política entrenada recibe 49 atributos del circuito y 8 señales visuales/corporales construidas; nunca puntería, fuerza ni trayectoria futura. Aciertos, esquivas y fallos se distinguen mediante un control inmóvil. El movimiento previo también evita impactos: una “esquiva” no prueba inteligencia. El aprendizaje es opcional y se guarda separado del laboratorio.', ['code']],
     ],
   },
 };

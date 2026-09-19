@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Fly Brain · Você contra a mosca</title>
+<meta name="description" content="Mire, ajuste a força e arremesse um chinelo 3D. Uma política treinada tenta escapar usando atividade neural simulada e sinais visuais construídos.">
+<link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="../defend/defend.css?v=play1"><link rel="stylesheet" href="play.css">
+</head>
+<body class="play live-mode">
+<dialog id="intro" aria-labelledby="introTitle"><p class="eyebrow">FLY BRAIN · PLAY</p><h1 id="introTitle" data-copy="title"></h1><p data-copy="intro"></p><p id="loading" role="status"></p><button id="enter" class="primary" disabled data-copy="enter"></button><p class="fine" data-copy="sensesText"></p></dialog>
+<header class="top"><div class="brand"><span class="mark" aria-hidden="true"></span><div><h1 data-copy="title"></h1><p data-copy="subtitle"></p></div></div><nav><a id="labLink" href="../defend/" data-copy="lab"></a><a data-science-link href="../science/" data-copy="science"></a></nav><label class="language"><span class="sr-only">Language</span><select id="lang"><option value="pt">Português</option><option value="en">English</option><option value="es">Español</option></select></label></header>
+<main class="play-main">
+<div class="play-left">
+<section class="stage" data-scene-size="half">
+<div class="scene-toolbar"><strong id="phase" role="status"></strong><label class="scene-size"><span id="sceneSizeLabel" data-i18n="scene.size"></span><select id="sceneSize" aria-labelledby="sceneSizeLabel"><option value="half" data-i18n="scene.half"></option><option value="large" data-i18n="scene.large"></option></select></label><button id="btnSceneFull" class="ghost" aria-haspopup="dialog" aria-controls="sceneDialog" aria-expanded="false" data-i18n="scene.full"></button><button id="btnSceneExit" class="ghost scene-exit" data-i18n="scene.exit"></button></div>
+<div class="arenas" id="arenas"><figure class="pane"><canvas id="scene" class="v3d" tabindex="0" aria-label="3D aiming area"></canvas><figcaption><span id="roundLabel"></span><span id="roundScore"></span><strong id="roundOutcome"></strong></figcaption><p class="aim-hint" data-copy="hint"></p></figure></div>
+</section>
+<footer class="transport shot-controls">
+<div class="aim-sliders">
+<label><span data-copy="direction"></span><output id="directionValue"></output><input id="direction" type="range" min="-65" max="65" step="1" value="0"></label>
+<label><span data-copy="power"></span><output id="powerValue"></output><input id="power" type="range" min="25" max="100" step="1" value="65"></label>
+<label><span data-copy="elevation"></span><output id="elevationValue"></output><input id="elevation" type="range" min="-35" max="40" step="1" value="-12"></label>
+</div>
+<div class="actions"><button id="btnThrow" class="primary" disabled data-copy="throw"></button><button id="btnPlay" class="ghost" data-copy="pause"></button><button id="btnReplay" class="ghost" disabled data-copy="replay"></button></div>
+</footer>
+<section class="scoreboard" aria-label="Score"><div><b id="hits">0</b><span data-copy="hits"></span></div><div><b id="dodges">0</b><span data-copy="dodges"></span></div><div><b id="misses">0</b><span data-copy="misses"></span></div></section>
+<div class="round-result"><h2 id="outcome" aria-live="polite"></h2><p id="reward"></p><p id="error" role="alert" hidden></p></div>
+</div>
+<aside class="rail">
+<section class="card options"><h2 data-copy="controls"></h2><label><input id="learning" type="checkbox"><span data-copy="learning"></span></label><p class="cap" data-copy="learningNote"></p><label><input id="cinematic" type="checkbox" checked><span data-copy="cinematic"></span></label><label><input id="intense" type="checkbox" checked><span data-copy="intense"></span></label></section>
+<section class="card brain-card" id="brainCard">
+      <h2><span data-i18n="brain.title">The escape circuit</span><span id="mActive" class="mono dim"></span></h2>
+      <p id="brainCount" class="brain-count mono"></p>
+      <div class="brain-tools">
+        <label><span data-i18n="brain.focus">Inspect</span><select id="brainFocus">
+          <option value="all" data-i18n="brain.all">Whole circuit</option>
+          <option value="LPLC2">LPLC2</option><option value="DNp01" selected>DNp01</option>
+          <option value="cell" disabled data-i18n="brain.selected">Selected neuron</option>
+        </select></label>
+        <button id="brainExpand" class="ghost" aria-expanded="false" aria-controls="brainCard" data-i18n="brain.expand">Expand</button>
+        <button id="brainReset" class="ghost" data-i18n="scene.reset">Reset camera</button>
+      </div>
+      <div class="brain-viewport">
+        <canvas id="brain" role="img" aria-label="FlyWire escape circuit"></canvas>
+        <canvas id="brainOverlay" aria-hidden="true"></canvas>
+        <div id="brainLabels" aria-hidden="true"></div>
+      </div>
+      <div id="brainNT" class="brain-nt"></div>
+      <div class="brain-tools"><label><input id="brainEdges" type="checkbox" checked><span data-i18n="brain.connections">Connections in the data</span></label></div>
+      <p id="brainEdgeCount" class="brain-count"></p>
+      <p class="brain-legend" data-i18n="brain.legend"></p>
+      <p id="brainDetail" class="brain-detail" role="status"></p>
+      <details class="brain-method"><summary data-i18n="brain.method">What is real here?</summary><p data-i18n="brain.provenance"></p><p data-i18n="brain.activity"></p><a data-science-link href="../science/#faq-neural-view" target="_blank" rel="noopener" data-i18n="science.link">Science & FAQ ↗</a></details>
+    </section>
+<p class="card cap" data-copy="brainSample"></p>
+<section class="card"><h2 data-copy="memory"></h2><p><span data-copy="trained"></span>: <b id="trained">0</b></p><p id="saveStatus" role="status"></p><div class="backups"><button id="export" class="ghost" data-copy="export"></button><label class="ghost import-label"><span data-copy="import"></span><input id="import" type="file" accept=".json,application/json"></label><button id="reset" class="ghost" data-copy="reset"></button><button id="blank" class="ghost" data-copy="blank"></button></div><p class="cap" data-copy="memoryNote"></p></section>
+</aside>
+</main>
+<section class="methods"><details><summary data-copy="method"></summary><p data-copy="methodText"></p></details><details><summary data-copy="senses"></summary><p data-copy="sensesText"></p></details><details><summary data-copy="evaluation"></summary><p data-copy="evaluationText"></p><a href="pretrained.json" data-copy="report"></a> · <a href="https://github.com/RaphaelSR/fly-brain-bench/blob/main/tools/train-play.mjs" data-copy="audit"></a></details></section>
+<dialog id="sceneDialog" class="scene-dialog" aria-labelledby="btnSceneFull"></dialog>
+<script type="module" src="page.js"></script>
+</body></html>

@@ -204,7 +204,7 @@ body.defend .scene-dialog .arenas{height:auto;min-height:0;flex:1}
 .scene-dialog .scene-exit{display:inline-flex;align-items:center}
 .scene-dialog .scene-toolbar #btnCamera{margin-left:0;margin-right:auto}
 body.defend .scene-dialog .transport{order:1;flex:none;justify-content:center;padding:8px 12px max(8px,env(safe-area-inset-bottom));gap:10px}
-.scene-dialog .transport>:not(#btnPlay):not(#btnRestart){display:none!important}
+.scene-dialog .transport:not(.shot-controls)>:not(#btnPlay):not(#btnRestart){display:none!important}
 .scene-dialog .transport button{min-height:44px}
 .scene-dialog .pane:before,.scene-dialog .pane:after{display:none}
 .scene-dialog .pane figcaption{top:12px;left:12px}

@@ -7,7 +7,7 @@ plain JavaScript with no runtime dependencies.
 
 Available in English, Portuguese and Spanish.
 
-**[Open the bench →](https://flybrain.raphaelrocha.com/)**  ·  **[Survival Arena →](https://flybrain.raphaelrocha.com/defend/)**  ·  **[Science & FAQ →](https://flybrain.raphaelrocha.com/science/)**
+**[Open the bench →](https://flybrain.raphaelrocha.com/)**  ·  **[Survival Arena →](https://flybrain.raphaelrocha.com/defend/)**  ·  **[Play: throw the slipper →](https://flybrain.raphaelrocha.com/play/)**  ·  **[Science & FAQ →](https://flybrain.raphaelrocha.com/science/)**
 
 ---
 
@@ -538,6 +538,42 @@ The `sympy` and `scientific-critical-thinking` procedural skills assisted the
 mathematical audit and interpretation review. Software/method credit (not
 neuroscience evidence): Kassis et al. (2026),
 [*Scientific Agent Skills: A Library of Procedural Knowledge for Research Agents*](https://doi.org/10.48550/arXiv.2609.00065).
+
+### Playable slipper mode
+
+`web/play/` is a separate, continuous-world game. Drag to aim horizontally, adjust
+power/elevation and throw once. The guide and live projectile share the same
+1/120-second integrator, gravity, bounce and courtyard colliders. The aiming
+camera stays fixed; optional cinematography starts after release. Mobile views
+offer half/large scenes and a full-screen dialog with the same live canvas.
+
+The fly's idle wander/hops are scripted. During a throw, a 57-feature, 8-action
+policy receives 49 features from the simulated 6,203-cell FlyWire circuit plus
+8 engineered present/past visual/proprioceptive features. It never receives the
+player's aim, power or future path. This hybrid is not a biologically validated
+fly, and its added geometric features prevent attributing success to the
+connectome alone. The brain inspector displays neural activity, not these extras.
+
+The default policy is frozen and pretrained for 2,400 throws. Optional online
+learning uses the existing REINFORCE-inspired algorithm, batches of 8 and terminal
+rewards: hit −3; survive a throw that would hit an immobile fly +3; otherwise 0,
+plus existing action costs. The immobile counterfactual determines the score's
+“dodge” versus “aim miss”; existing motion can contribute, so it is not a causal
+test of learned reactions. Replay is presentation-only. Completed throws save to
+`fly-play-save-v1`, independently of laboratory/prediction data. Backup import,
+export, pretrained reset and untrained reset are explicit; unfinished trajectories
+are not resumed. Other-tab save conflicts pause the session instead of overwriting.
+
+Reproduce training/report with
+`node --experimental-default-type=module tools/train-play.mjs 2400`.
+The final `ARTIFACT` line contains `web/play/pretrained.json`'s format. Evaluation
+alone can be rerun against the shipped weights by replacing `2400` with `--evaluate`.
+It uses five held-out shot seeds with matched starting poses/shots for trained,
+random-action and stationary controllers: 37/80, 11/80 and 0/80 avoided threats.
+Each controller also faces 40 initial non-threats, and can move into danger;
+total hits across all 120 throws were 47, 70 and 80 respectively. These exploratory
+results use one training seed, are not calibrated next-shot probabilities and do
+not validate connectome necessity. Read the per-seed report before generalizing.
 
 ### Data and model
 

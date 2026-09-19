@@ -57,7 +57,7 @@ export class BrainInspector {
     this.card.setAttribute('aria-label', t('brain.title'));
     if (on) this.card.setAttribute('aria-modal', 'true');
     else this.card.removeAttribute('aria-modal');
-    for (const el of document.querySelectorAll('.top, .stage, .transport, .rail > .card:not(#brainCard)')) el.inert = on;
+    for (const el of document.querySelectorAll('.top, .stage, .transport, .rail > .card:not(#brainCard), .play .methods, .play .scoreboard, .play .round-result')) el.inert = on;
     document.querySelector('#brainExpand').setAttribute('aria-expanded', String(on));
     document.querySelector('#brainExpand').focus();
     this.relabel();

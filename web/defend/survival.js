@@ -55,24 +55,31 @@ export class SurvivalWorld {
   step() {
     const dt = WORLD_STEP;
     this.time += dt;
-    if (this.time > WINDUP) {
-      const p = this.projectile;
-      this.pvy -= 4 * dt;
-      p.x += this.pvx * dt; p.z += this.pvz * dt; p.y += this.pvy * dt;
-      p.yaw = this.angle + Math.sin((this.time - WINDUP) * 2) * 0.12;
-      if (p.y < 0.06) {
-        p.y = 0.06; this.pvy = this.pvy < -0.4 ? -this.pvy * 0.18 : 0;
-        this.pvx *= Math.exp(-6 * dt); this.pvz *= Math.exp(-6 * dt);
-      }
-      if (this.expanded) for (const solid of SOLIDS) {
-        const dx = p.x - solid.x, dz = p.z - solid.z, distance = Math.hypot(dx, dz);
-        if (p.y < solid.height && distance < solid.radius + 0.7) {
-          const nx = distance > 1e-8 ? dx / distance : 1, nz = distance > 1e-8 ? dz / distance : 0;
-          p.x = solid.x + nx * (solid.radius + 0.7); p.z = solid.z + nz * (solid.radius + 0.7);
-          this.pvx = 0; this.pvz = 0;
-        }
+    if (this.projectileActive !== false && this.time > WINDUP) this.advanceProjectile();
+    this.advanceFly(dt);
+  }
+
+  advanceProjectile() {
+    const dt = WORLD_STEP;
+    const p = this.projectile;
+    this.pvy -= 4 * dt;
+    p.x += this.pvx * dt; p.z += this.pvz * dt; p.y += this.pvy * dt;
+    p.yaw = this.angle + Math.sin((this.time - WINDUP) * 2) * 0.12;
+    if (p.y < 0.06) {
+      p.y = 0.06; this.pvy = this.pvy < -0.4 ? -this.pvy * 0.18 : 0;
+      this.pvx *= Math.exp(-6 * dt); this.pvz *= Math.exp(-6 * dt);
+    }
+    if (this.expanded) for (const solid of SOLIDS) {
+      const dx = p.x - solid.x, dz = p.z - solid.z, distance = Math.hypot(dx, dz);
+      if (p.y < solid.height && distance < solid.radius + 0.7) {
+        const nx = distance > 1e-8 ? dx / distance : 1, nz = distance > 1e-8 ? dz / distance : 0;
+        p.x = solid.x + nx * (solid.radius + 0.7); p.z = solid.z + nz * (solid.radius + 0.7);
+        this.pvx = 0; this.pvz = 0;
       }
     }
+  }
+
+  advanceFly(dt) {
     if (this.impact) {
       this.impact.update(dt);
       this.x = this.impact.x; this.z = this.impact.z;
@@ -107,7 +114,7 @@ export class SurvivalWorld {
     for (const key of ['x', 'z']) {
       if (Math.abs(this[key]) > limit) { this[key] = Math.sign(this[key]) * limit; this[`v${key}`] *= -0.2; }
     }
-    if (this.time > WINDUP && this.collides()) {
+    if (this.projectileActive !== false && this.time > WINDUP && this.collides()) {
       this.hit = true; this.contactAt = this.time;
       this.impact = new ImpactBody({ x: this.x, z: this.z, height: this.height, lean: this.lean }, this.angle, { recover: false });
     }

@@ -45,7 +45,7 @@ test('guide translations, accessible copy and citations are complete', () => {
   for (const c of Object.values(CONTENT)) {
     assert.deepEqual(Object.keys(c), Object.keys(CONTENT.pt));
     for (const key of keys) assert.ok(typeof c[key] === 'string' && c[key].length, key);
-    assert.equal(c.actions.length, 8); assert.equal(c.math.length, 5); assert.equal(c.faq.length, 12);
+    assert.equal(c.actions.length, 8); assert.equal(c.math.length, 5); assert.equal(c.faq.length, 13);
     assert.equal(new Set(c.faq.map(row => row[0])).size, c.faq.length);
     assert.equal(c.sourceNotes.length, Object.keys(SOURCES).length);
     for (const row of [...c.evidence, ...c.math, ...c.faq]) for (const ref of row[3]) assert.ok(SOURCES[ref]);
