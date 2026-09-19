@@ -47,11 +47,14 @@
 </header>
 
 <main>
-  <section class="stage">
+  <section class="stage" data-scene-size="half">
     <div class="scene-toolbar">
       <span class="scene-title" data-i18n="scene.escape">The escape, up close</span>
       <span id="cameraHint" class="scene-hint" data-i18n="scene.hint">Drag to orbit · scroll to zoom</span>
       <button id="btnCamera" class="ghost" data-i18n="scene.reset">Reset camera</button>
+      <label class="scene-size"><span id="sceneSizeLabel" data-i18n="scene.size">View</span><select id="sceneSize" aria-labelledby="sceneSizeLabel"><option value="half" data-i18n="scene.half">Half screen</option><option value="large" data-i18n="scene.large">Large</option></select></label>
+      <button id="btnSceneFull" class="ghost" aria-haspopup="dialog" aria-controls="sceneDialog" aria-expanded="false" data-i18n="scene.full">Full screen</button>
+      <button id="btnSceneExit" class="ghost scene-exit" data-i18n="scene.exit">Exit full screen</button>
     </div>
     <p id="viewStatus" class="view-status" role="status"></p>
     <div class="experiment-controls">
@@ -180,6 +183,8 @@
 
   </aside>
 </main>
+
+<dialog id="sceneDialog" class="scene-dialog" aria-labelledby="btnSceneFull"></dialog>
 
 <footer class="transport">
   <button id="btnPlay" class="primary">Pause</button>

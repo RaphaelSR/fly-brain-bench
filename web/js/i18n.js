@@ -818,6 +818,9 @@ Object.assign(ES, {
 });
 
 export const LOCALES = { en: EN, pt: PT, es: ES };
+Object.assign(EN, { 'scene.size': 'View', 'scene.half': 'Half screen', 'scene.large': 'Large', 'scene.full': 'Full screen', 'scene.exit': 'Exit full screen' });
+Object.assign(PT, { 'scene.size': 'Visualização', 'scene.half': 'Meia tela', 'scene.large': 'Ampliada', 'scene.full': 'Tela cheia', 'scene.exit': 'Sair da tela cheia' });
+Object.assign(ES, { 'scene.size': 'Vista', 'scene.half': 'Media pantalla', 'scene.large': 'Ampliada', 'scene.full': 'Pantalla completa', 'scene.exit': 'Salir de pantalla completa' });
 for (const [locale, label] of Object.entries({ en: 'Science & FAQ ↗', pt: 'Ciência & FAQ ↗', es: 'Ciencia & FAQ ↗' })) LOCALES[locale]['science.link'] = label;
 let current = 'en';
 

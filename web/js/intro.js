@@ -14,7 +14,7 @@ export class IntroGate {
       this.background.forEach(el => { el.inert = false; });
       this.root.hidden = true;
       onEnter();
-      document.querySelector('#btnPlay')?.focus();
+      (document.querySelector('#btnSceneFull') || document.querySelector('#btnPlay'))?.focus({ preventScroll: true });
     });
   }
   ready() {
