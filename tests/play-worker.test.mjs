@@ -1,0 +1,38 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { PROTOCOL } from '../web/play/core.js';
+import { validateSave } from '../web/play/storage.js';
+
+test('actual play worker advances live, locks throws, saves one outcome and restores only between rounds', async () => {
+  const oldFetch = globalThis.fetch, oldSelf = globalThis.self, messages = [];
+  globalThis.fetch = async path => new Response(readFileSync(new URL(`../web/play/${path}`, import.meta.url)));
+  globalThis.self = { postMessage: value => messages.push(value) };
+  try {
+    await import('../web/play/play.worker.js'); let id = 0;
+    const request = async (type, options = {}) => {
+      messages.length = 0; await self.onmessage({ data: { id: ++id, type, ...options } });
+      return messages.at(-1);
+    };
+    const artifact = JSON.parse(readFileSync(new URL('../web/play/pretrained.json', import.meta.url)));
+    const saved = { protocol: PROTOCOL, policy: artifact.policy, stats: { throws: 0, hits: 0, dodges: 0, misses: 0 } };
+    const initial = await request('init', { seed: 77, saved }); validateSave(initial.save);
+    const moved = await request('step', { ticks: 12 }); assert.notDeepEqual(moved.state.frame, initial.state.frame);
+    assert.ok((await request('step', { ticks: 13 })).error);
+    const shot = { parameters: { aim: { x: 0, z: 0 }, power: 65, elevation: -12 }, learning: true };
+    assert.equal((await request('throw', shot)).state.phase, 'flight');
+    assert.ok((await request('throw', shot)).error);
+    assert.ok((await request('restore', { seed: 2, saved })).error);
+    let outcomes = 0, result;
+    for (let i = 0; i < 36; i++) {
+      result = await request('step', { ticks: 12 }); assert.equal(result.error, undefined);
+      if (result.save) { outcomes++; validateSave(result.save); }
+    }
+    assert.equal(outcomes, 1); assert.equal(result.state.stats.throws, 1); assert.equal(result.state.trained, 2401);
+    for (let i = 0; i < 13; i++) result = await request('step', { ticks: 12 });
+    assert.equal(result.state.phase, 'aim');
+    assert.ok((await request('restore', { seed: 2, saved: {} })).error);
+    assert.equal((await request('step', { ticks: 1 })).state.stats.throws, 1);
+    const restored = await request('restore', { seed: 2, saved }); assert.deepEqual(restored.save, saved);
+  } finally { globalThis.fetch = oldFetch; globalThis.self = oldSelf; }
+});

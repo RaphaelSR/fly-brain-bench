@@ -822,6 +822,7 @@ Object.assign(EN, { 'scene.size': 'View', 'scene.half': 'Half screen', 'scene.la
 Object.assign(PT, { 'scene.size': 'Visualização', 'scene.half': 'Meia tela', 'scene.large': 'Ampliada', 'scene.full': 'Tela cheia', 'scene.exit': 'Sair da tela cheia' });
 Object.assign(ES, { 'scene.size': 'Vista', 'scene.half': 'Media pantalla', 'scene.large': 'Ampliada', 'scene.full': 'Pantalla completa', 'scene.exit': 'Salir de pantalla completa' });
 for (const [locale, label] of Object.entries({ en: 'Science & FAQ ↗', pt: 'Ciência & FAQ ↗', es: 'Ciencia & FAQ ↗' })) LOCALES[locale]['science.link'] = label;
+for (const [locale, label] of Object.entries({ en: 'Play: throw the slipper ↗', pt: 'Jogar: arremesse o chinelo ↗', es: 'Jugar: lanza la chancla ↗' })) LOCALES[locale]['play.link'] = label;
 let current = 'en';
 
 export function detectLocale() {
@@ -852,7 +853,7 @@ export function t(key, vars) {
 
 /* Applies translations to any element carrying data-i18n / data-i18n-html. */
 export function applyDom(root = document) {
-  root.querySelectorAll('[data-science-link]').forEach(el => {
+  root.querySelectorAll('[data-science-link], [data-play-link]').forEach(el => {
     const url = new URL(el.href); url.searchParams.set('lang', current); el.href = url.href;
   });
   root.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
