@@ -1,162 +1,186 @@
-/* Headless trainer for the escape scenario.
+/* Headless trainer and replay recorder for the escape scenario.
 
    The browser could not answer the only question that matters — is this task
    learnable at all — because every episode competed with rendering for CPU and
    took tens of seconds. This runs the same engine and the same policy with
-   nothing else on the thread, so a few hundred episodes take minutes.
+   nothing else on the thread, so a few hundred episodes take under a minute.
 
-   Everything here is imported from the page's own modules. There is no second
-   implementation to drift.
+   The engine, the decoders, the protocol and the learning rule are all imported.
+   There is no second implementation to drift.
 
-   Usage:  node tools/train.mjs [episodes] [--shuffled] [--out run.json]
+   It also writes what the page plays back. Training is not a spectator sport at
+   one episode every few seconds, so the page is a player over a recording made
+   here: the arc, and — every PROBE_EVERY episodes — the *same fixed threats*
+   re-presented to the frozen policy, with her neurons captured while she answers.
+   That is what makes early and late comparable: same situation, different answer.
+
+   Usage:
+     node tools/train.mjs 600 --seed 11                  train and report
+     node tools/train.mjs 600 --seed 11 --shuffled       degree-matched control
+     node tools/train.mjs 600 --seed 11 --replay         also write the recording
 */
 
-import { readFileSync, writeFileSync } from 'node:fs';
-import { gunzipSync } from 'node:zlib';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { writeFileSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
+import { join } from 'node:path';
 
-import { Engine } from '../web/js/lif-core.js';
-import { decodeConnectome, decodeLabels } from '../web/js/data.js';
+import { loadRig, DATA } from './rig.mjs';
 import { Threat, GLANCES_PER_APPROACH } from '../web/defend/arena.js';
-import { Policy, ACTIONS, GLANCE, blankBody, applyAction, decayBody, survived } from '../web/defend/policy.js';
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const DATA = join(HERE, '..', 'web', 'defend', 'data');
+import {
+  Policy, ACTIONS, TRAIN, THREAT_BAND, RULES, temperature,
+  blankBody, applyAction, decayBody, survived, outcomeReward, randomThreatAngle, awayFrom,
+} from '../web/defend/policy.js';
 
 const args = process.argv.slice(2);
+const flag = n => args.includes(n);
+const opt = (n, d) => (flag(n) ? args[args.indexOf(n) + 1] : d);
 const EPISODES = Number(args.find(a => /^\d+$/.test(a)) || 300);
-const SHUFFLED = args.includes('--shuffled');
-const OUT = args.includes('--out') ? args[args.indexOf('--out') + 1] : null;
-const SEED = Number(args.includes('--seed') ? args[args.indexOf('--seed') + 1] : 20260919);
+const SHUFFLED = flag('--shuffled');
+const QUIET = flag('--quiet');
+const REPLAY = flag('--replay') ? opt('--replay-out', join(DATA, 'replay.json.gz')) : null;
+const SEED = Number(opt('--seed', 20260919));
+if (flag('--lr')) TRAIN.lr = Number(opt('--lr'));
+if (flag('--batch')) TRAIN.batch = Number(opt('--batch'));
 
-/* a seeded generator, so a run can be repeated exactly */
-function mulberry(a) {
-  return function () {
-    a |= 0; a = a + 0x6D2B79F5 | 0;
-    let t = Math.imul(a ^ a >>> 15, 1 | a);
-    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  };
-}
-const rng = mulberry(SEED);
-
-const gz = f => gunzipSync(readFileSync(join(DATA, f)));
-const meta = JSON.parse(gz('meta.json.gz').toString());
-const N = meta.n_neurons, E = meta.n_edges;
-const labels = decodeLabels(gz('labels.bin.gz'), N);
-const suffix = SHUFFLED ? '.shuf' : '';
-const conn = decodeConnectome(gz(`conn${suffix}.bin.gz`), N, E, gz(`sign${suffix}.bin.gz`));
-const channels = JSON.parse(readFileSync(join(DATA, 'channels.json')));
-
-const featNames = Object.keys(channels.features);
-const featIdx = featNames.map(n => Int32Array.from(channels.features[n]));
-
-const d = meta.dicts;
-const lpType = d.cell_type.indexOf('LPLC2');
-const gfType = d.cell_type.indexOf('DNp01');
-const lSide = d.side.indexOf('left'), rSide = d.side.indexOf('right');
-const loomL = [], loomR = [], gf = [];
-for (let i = 0; i < N; i++) {
-  if (labels.cellType[i] === lpType) (labels.side[i] === lSide ? loomL : loomR).push(i);
-  if (labels.cellType[i] === gfType) gf.push(i);
-}
-const stimIdx = Int32Array.from([...loomL, ...loomR]);
-const rates = new Float32Array(stimIdx.length);
-
-const eng = new Engine({ N, indptr: conn.indptr, indices: conn.indices, weights: conn.weights, dt: 0.5 });
-eng.rand = rng;
-
-if (!args.includes('--quiet')) {
-  console.log(`${SHUFFLED ? 'shuffled control' : 'real connectome'}: ` +
-    `${N.toLocaleString('en-US')} neurons, ${E.toLocaleString('en-US')} edges`);
-  console.log(`LPLC2 ${loomL.length} left / ${loomR.length} right, DNp01 ${gf.length}`);
-}
-
-const hz = new Float32Array(N);
-const win = new Float32Array(N);
-function advanceBio(ms) {
-  const steps = Math.round(ms / eng.DT);
-  eng.run(steps, i => { win[i]++; });
-  const secs = ms / 1000;
-  for (let i = 0; i < N; i++) { hz[i] = win[i] / secs; win[i] = 0; }
-}
-function features() {
-  const x = new Float32Array(featIdx.length);
-  for (let f = 0; f < featIdx.length; f++) {
-    const ids = featIdx[f];
-    let s = 0;
-    for (let i = 0; i < ids.length; i++) s += hz[ids[i]];
-    x[f] = 1 - Math.exp(-Math.max(0, s / ids.length) / 40);
+/* the probe battery: fixed angles across the readable band, never learned from */
+const [BLO, BHI] = THREAT_BAND;
+const PROBE_N = 6;               // angles per side, evenly spaced across the band
+const PROBE_ANGLES = [];
+for (let s = -1; s <= 1; s += 2) {
+  for (let i = 0; i < PROBE_N; i++) {
+    PROBE_ANGLES.push(Math.round(s * (BLO + (BHI - BLO) * (i / (PROBE_N - 1))) * 100) / 100);
   }
-  return x;
 }
-const giantFibre = () => { let s = 0; for (const i of gf) s += hz[i]; return s / Math.max(gf.length, 1); };
+const PROBE_EVERY = Number(opt('--probe-every', 25));
+const SHOWCASE = 8;              // which probe angle gets her neurons recorded
+const SNAP_EVERY = 3;            // ...and at every third probe, to keep the file small
 
-/* one glance: baseline, a short pulse, read the transient */
-function glance(threat, heading) {
-  advanceBio(GLANCE.gap);
-  const base = features();
-  const side = threat.sideOf(heading), w = threat.loom;
-  let l = side < 0 ? w * -side : 0, r = side > 0 ? w * side : 0;
-  const ahead = Math.max(0, 1 - Math.abs(side) * 2.2) * w;
-  l = Math.max(l, ahead * 0.8); r = Math.max(r, ahead * 0.8);
-  for (let i = 0; i < loomL.length; i++) rates[i] = l * 150;
-  for (let i = 0; i < loomR.length; i++) rates[loomL.length + i] = r * 150;
-  eng.stimulate(stimIdx, rates);
-  advanceBio(GLANCE.width);
-  eng.stimulate(new Int32Array(0));
-  advanceBio(GLANCE.readAt - GLANCE.width);
-  const f = features();
-  const ev = new Float32Array(f.length);
-  let peak = 1e-6;
-  for (let i = 0; i < f.length; i++) { ev[i] = Math.max(0, f[i] - base[i]); if (ev[i] > peak) peak = ev[i]; }
-  if (peak > 0.01) for (let i = 0; i < ev.length; i++) ev[i] /= peak;
-  else ev.fill(0);
-  return { x: ev, gf: giantFibre(), drive: { l, r } };
+const rig = loadRig({ shuffled: SHUFFLED, seed: SEED });
+const { rng } = rig;
+
+if (!QUIET) {
+  console.log(`${SHUFFLED ? 'shuffled control' : 'real connectome'}: ` +
+    `${rig.N.toLocaleString('en-US')} neurons, ${rig.E.toLocaleString('en-US')} edges`);
+  console.log(`LPLC2 ${rig.loomL.length} left / ${rig.loomR.length} right, DNp01 ${rig.gf.length}`);
 }
 
-const pol = new Policy(featIdx.length);
+const pol = new Policy(rig.D);
+pol.rand = rng;
 const log = [];
+const probes = [];
 const t0 = Date.now();
+const r3 = v => Math.round(v * 1e3) / 1e3;
+
+/* Run the fixed battery against the current weights, without learning from it
+   and without exploration noise: this is what she would do, not what she is
+   trying. Reads the policy, never writes to it. */
+function probe(epIndex, withSnaps) {
+  const runs = [];
+  for (let ai = 0; ai < PROBE_ANGLES.length; ai++) {
+    const threat = new Threat(PROBE_ANGLES[ai]);
+    const body = blankBody();
+    const steps = [];
+    const snaps = [];
+    const wantSnap = withSnaps && ai === SHOWCASE;
+    for (let k = 0; k < GLANCES_PER_APPROACH; k++) {
+      const g = rig.glance(threat.sideOf(0), threat.loom);
+      const p = pol.probs(g.x, 1);
+      let a = 0;
+      for (let j = 1; j < p.length; j++) if (p[j] > p[a]) a = j;   // her answer, not a sample
+      if (wantSnap) snaps.push(rig.snapshot());
+      applyAction(body, a);
+      steps.push({
+        a, p: Array.from(p, r3), lean: body.lean, used: body.leapUsed ? 1 : 0,
+        air: r3(body.airborne), u: r3(g.urgency), l: r3(g.drive.l), r: r3(g.drive.r),
+        gf: r3(g.gf), rad: r3(threat.r),
+      });
+      threat.advance();
+      threat.r = threat.target;
+      decayBody(body);
+    }
+    runs.push({
+      ang: r3(PROBE_ANGLES[ai]), away: awayFrom(threat),
+      ok: survived(body, threat) ? 1 : 0,
+      timed: body.airborne > RULES.airborneAt ? 1 : 0,      // left the ground in time
+      aimed: body.lean === awayFrom(threat) ? 1 : 0,        // ...and away from it
+      steps, snaps: snaps.length ? snaps : undefined,
+    });
+  }
+  probes.push({ ep: epIndex, ok: runs.map(r => r.ok),
+    timed: runs.map(r => r.timed), aimed: runs.map(r => r.aimed), runs });
+  return runs.reduce((s, r) => s + r.ok, 0) / runs.length;
+}
+
+let probeCount = 0;
+if (REPLAY) { probe(0, true); probeCount++; }
 
 for (let ep = 0; ep < EPISODES; ep++) {
-  const fromLeft = rng() < 0.5;
-  const threat = new Threat((fromLeft ? -1 : 1) * (0.35 + rng() * 0.9));
+  const threat = new Threat(randomThreatAngle(rng));
   const body = blankBody();
   const steps = [];
-  const temp = Math.max(0.65, 1.7 - pol.episodes * 0.03);
+  const temp = temperature(pol.episodes);
 
   for (let k = 0; k < GLANCES_PER_APPROACH; k++) {
-    const { x } = glance(threat, body.heading);
+    const { x } = rig.glance(threat.sideOf(0), threat.loom);
     const a = pol.act(x, temp);
     const r = applyAction(body, a);
-    steps.push({ x, a, r });
+    steps.push({ x, a, r, temp });
     threat.advance();
     threat.r = threat.target;
     decayBody(body);
   }
-  const dodged = survived(body, threat);
-  steps[steps.length - 1].r += dodged ? 3 : -3;
+  steps[steps.length - 1].r += outcomeReward(body, threat);
   pol.learn(steps);
-  log.push(dodged ? 1 : 0);
+  log.push(survived(body, threat) ? 1 : 0);
 
-  if (!args.includes('--quiet') && (ep + 1) % 25 === 0) {
+  if (REPLAY && (ep + 1) % PROBE_EVERY === 0) {
+    probe(ep + 1, probeCount % SNAP_EVERY === 0);
+    probeCount++;
+  }
+
+  if (!QUIET && (ep + 1) % 25 === 0) {
     const w = log.slice(-25);
     const pc = Math.round(100 * w.reduce((a, b) => a + b, 0) / w.length);
     const el = ((Date.now() - t0) / 1000).toFixed(0);
-    process.stdout.write(`  ep ${String(ep + 1).padStart(4)}  last 25: ${String(pc).padStart(3)}% survived   [${el}s]\n`);
+    const last = probes[probes.length - 1];
+    const pr = last ? `   probe ${Math.round(100 * last.ok.reduce((a, b) => a + b, 0) / PROBE_ANGLES.length)}%` : '';
+    process.stdout.write(`  ep ${String(ep + 1).padStart(4)}  last 25: ${String(pc).padStart(3)}% escaped${pr}   [${el}s]\n`);
   }
 }
+pol.flush();
+if (REPLAY) probe(EPISODES, true);
 
-const pc = a => a.length ? Math.round(100 * a.reduce((x, y) => x + y, 0) / a.length) : 0;
-if (args.includes('--quiet')) {
-  console.log(`${SHUFFLED ? 'shuf' : 'real'} seed=${SEED} first50=${pc(log.slice(0, 50))} last50=${pc(log.slice(-50))} overall=${pc(log)}`);
+const pc = a => (a.length ? Math.round(100 * a.reduce((x, y) => x + y, 0) / a.length) : 0);
+if (QUIET) {
+  const last = probes[probes.length - 1];
+  console.log(`${SHUFFLED ? 'shuf' : 'real'} seed=${SEED} first50=${pc(log.slice(0, 50))} last50=${pc(log.slice(-50))} overall=${pc(log)}` +
+    (probes.length ? ` probe=${pc(last.ok)} timed=${pc(last.timed)} aimed=${pc(last.aimed)}` : ''));
 } else {
   console.log(`\nfirst 50: ${pc(log.slice(0, 50))}%   last 50: ${pc(log.slice(-50))}%   overall: ${pc(log)}%`);
-  console.log(`chance is 25% with four actions; ${((Date.now() - t0) / 1000).toFixed(0)}s total`);
+  if (probes.length) {
+    const last = probes[probes.length - 1];
+    console.log(`probe battery (frozen policy, ${PROBE_ANGLES.length} fixed threats): ` +
+      `${pc(probes[0].ok)}% at the start, ${pc(last.ok)}% at the end`);
+    console.log(`  of which: left the ground in time ${pc(last.timed)}%, leaned away from it ${pc(last.aimed)}%`);
+  }
+  console.log(`${((Date.now() - t0) / 1000).toFixed(0)}s total`);
 }
-if (OUT) {
-  writeFileSync(OUT, JSON.stringify({ shuffled: SHUFFLED, episodes: EPISODES, log, policy: pol.serialise() }));
-  console.log(`wrote ${OUT}`);
+
+if (REPLAY) {
+  const rec = {
+    v: 2, seed: SEED, shuffled: SHUFFLED, episodes: EPISODES,
+    neurons: rig.N, glances: GLANCES_PER_APPROACH,
+    actions: ACTIONS, features: rig.featNames,
+    probeAngles: PROBE_ANGLES, probeEvery: PROBE_EVERY, showcase: SHOWCASE,
+    rules: { airborneAt: RULES.airborneAt, leapDecay: RULES.leapDecay },
+    train: log, probes,
+    policy: pol.serialise(),
+    built: new Date().toISOString().slice(0, 10),
+  };
+  const buf = gzipSync(Buffer.from(JSON.stringify(rec)), { level: 9 });
+  writeFileSync(REPLAY, buf);
+  const snapRuns = probes.reduce((s, p) => s + p.runs.filter(r => r.snaps).length, 0);
+  const cells = probes.flatMap(p => p.runs.filter(r => r.snaps)).flatMap(r => r.snaps.map(s => s.i.length));
+  console.log(`wrote ${REPLAY}  (${(buf.length / 1024).toFixed(0)} KB gzipped, ${probes.length} probes, ` +
+    `${snapRuns} recorded runs, ${Math.round(cells.reduce((a, b) => a + b, 0) / Math.max(cells.length, 1))} cells per snapshot)`);
 }
