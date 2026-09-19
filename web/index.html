@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="bench">
 
 <div id="boot">
   <div class="boot-inner">
@@ -83,6 +83,23 @@
   </aside>
 
   <section class="centre">
+    <section class="fly-stage">
+      <div class="scene-toolbar">
+        <div><span class="scene-title" data-i18n="body.title"></span><span id="behaveNow" class="mono beh">—</span></div>
+        <button id="btnCamera" class="ghost" data-i18n="scene.reset">Reset camera</button>
+      </div>
+      <canvas id="flywell" aria-label="Interactive 3D fruit fly"></canvas>
+      <div class="fly-caption"><span data-i18n="scene.hint">Drag to orbit · scroll to zoom</span><span data-i18n="body.engineered"></span><button class="info" data-info="body" aria-label="info">i</button></div>
+      <p id="viewStatus" class="view-status" role="status"></p>
+    </section>
+    <div class="channels">
+      <h2 class="rail-title"><span data-i18n="rail.channels"></span><button class="info" data-info="channels" aria-label="info">i</button>
+        <span class="mono dim" data-i18n="body.engineered"></span></h2>
+      <div id="chanBody"></div>
+    </div>
+  </section>
+
+  <aside class="rail right">
     <div class="well-wrap">
       <canvas id="well"></canvas>
       <div id="inspect"></div>
@@ -96,20 +113,6 @@
         <button class="info" data-info="brain" aria-label="info">i</button>
       </div>
     </div>
-    <div class="channels">
-      <h2 class="rail-title"><span data-i18n="rail.channels"></span><button class="info" data-info="channels" aria-label="info">i</button>
-        <span class="mono dim" data-i18n="body.engineered"></span></h2>
-      <div id="chanBody"></div>
-    </div>
-  </section>
-
-  <aside class="rail right">
-    <section class="panel fly-panel">
-      <h2 class="rail-title"><span data-i18n="body.title"></span><button class="info" data-info="body" aria-label="info">i</button>
-        <span id="behaveNow" class="mono beh">—</span></h2>
-      <canvas id="flywell"></canvas>
-    </section>
-
     <section class="panel">
       <h2 class="rail-title"><span data-i18n="train.title"></span><button class="info" data-info="decoder" aria-label="info">i</button>
         <span class="seg"><button id="modeRules" class="on" data-i18n="train.mode.rules"></button><button id="modeLearned" data-i18n="train.mode.learned"></button></span>

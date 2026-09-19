@@ -82,7 +82,10 @@ async function boot() {
     await yieldFrame();
     S.view = new BrainView($('#well'), pos, labels.nt, radius);
     S.view.setNTColors(meta.dicts.top_nt.map(n => NT_COLOR[n] || NT_COLOR.unknown));
-    try { S.fly = new FlyView($('#flywell')); } catch (e) { console.warn('fly view unavailable', e); }
+    try { S.fly = new FlyView($('#flywell')); } catch (e) {
+      $('#viewStatus').textContent = t('scene.unavailable');
+      console.warn('fly view unavailable', e);
+    }
     S.dec = new Decoder(S.channels.channels, S.channels.features);
 
     S.worker = new Worker('js/sim.worker.js', { type: 'module' });
@@ -122,10 +125,10 @@ function onWorker(ev) {
     const typeName = qs.get('type');
     if (typeName) {
       const ti = S.meta.dicts.cell_type.indexOf(typeName);
-      if (ti >= 0) { driveType(ti, typeName, countType(ti)); setRunning(true); return; }
+      if (ti >= 0) { driveType(ti, typeName, countType(ti)); setRunning(!matchMedia('(prefers-reduced-motion: reduce)').matches); return; }
     }
     selectPreset(want || PRESETS[0]);
-    setRunning(true);
+    setRunning(!matchMedia('(prefers-reduced-motion: reduce)').matches);
     return;
   }
   if (m.type === 'frame') {
@@ -193,6 +196,7 @@ function buildUI() {
     }
   }
   $('#btnPlay').addEventListener('click', () => setRunning(!S.running));
+  $('#btnCamera').addEventListener('click', () => S.fly?.resetCamera());
   $('#btnReset').addEventListener('click', () => {
     S.spikeAccum.fill(0); S.winCount.fill(0); S.hz.fill(0);
     S.view.act.fill(0); S.view.uploadAct();
@@ -489,7 +493,7 @@ function loop(now) {
   S.view.draw(dt);
   placeRegions();
 
-  if (S.fly) { S.fly.update(S.drive || {}, dt); S.fly.draw(); }
+  if (S.fly) { S.fly.update(S.drive || {}, S.running ? dt : 0); S.fly.draw(dt); }
   if (now - S.lastReadout > 200) { readout(now); S.lastReadout = now; }
   schedule();
 }

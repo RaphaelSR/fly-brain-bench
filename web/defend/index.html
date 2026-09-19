@@ -44,13 +44,19 @@
 
 <main>
   <section class="stage">
+    <div class="scene-toolbar">
+      <span class="scene-title" data-i18n="scene.escape">The escape, up close</span>
+      <span id="cameraHint" class="scene-hint" data-i18n="scene.hint">Drag to orbit · scroll to zoom</span>
+      <button id="btnCamera" class="ghost" data-i18n="scene.reset">Reset camera</button>
+    </div>
+    <p id="viewStatus" class="view-status" role="status"></p>
     <div class="arenas" id="arenas">
       <figure class="pane" id="paneA">
         <canvas class="v2d"></canvas>
         <canvas class="v3d" hidden></canvas>
         <figcaption>
           <b class="mono" data-ep>episode 0</b>
-          <span data-verdict></span>
+          <span data-verdict role="status"></span>
         </figcaption>
       </figure>
       <figure class="pane" id="paneB" hidden>
@@ -58,7 +64,7 @@
         <canvas class="v3d" hidden></canvas>
         <figcaption>
           <b class="mono" data-ep>episode 0</b>
-          <span data-verdict></span>
+          <span data-verdict role="status"></span>
         </figcaption>
       </figure>
     </div>
@@ -106,12 +112,12 @@
     <input id="scrub" type="range" min="0" max="25" step="1" value="0" aria-label="Training checkpoint">
     <span id="scrubOut" class="mono">episode 0</span>
   </label>
-  <button id="btnDim" class="ghost" aria-pressed="false" data-i18n="defend.btn.to3d">See it in 3D</button>
+  <button id="btnDim" class="ghost" aria-pressed="false">2D map</button>
   <button id="btnFollow" class="ghost" aria-pressed="true" data-i18n="defend.btn.follow">Walk the arc</button>
   <button id="btnCompare" class="ghost" aria-pressed="false">Compare with episode 0</button>
   <button id="btnWiring" class="ghost" aria-pressed="false">Shuffle her wiring</button>
   <label class="slider"><span data-i18n="defend.speed">Speed</span>
-    <input id="speed" type="range" min="1" max="4" step="1" value="2">
+    <input id="speed" type="range" min="1" max="4" step="1" value="1">
     <span id="speedOut" class="mono">1&times;</span>
   </label>
 </footer>

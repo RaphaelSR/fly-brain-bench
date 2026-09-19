@@ -210,7 +210,11 @@ const EN = {
   "defend.info.brain.t": "The cells that were firing",
   "defend.info.brain.b": "Her escape circuit at real coordinates, coloured by the transmitter each cell releases — amber excites, blue and violet inhibit. The bright ones were actually spiking during that glance, recorded from the simulation rather than animated. Watch the driven eye light first and the wave arrive at the descending neurons a moment later.",
   "defend.btn.to3d": "See it in 3D",
-  "defend.btn.to2d": "Back to the map",
+  "defend.btn.to2d": "2D map",
+  "scene.escape": "The escape, up close",
+  "scene.hint": "Drag to orbit · scroll to zoom",
+  "scene.reset": "Reset camera",
+  "scene.unavailable": "3D is unavailable on this device. Try a browser with WebGL2 enabled.",
 };
 
 const PT = {
@@ -423,7 +427,11 @@ const PT = {
   "defend.info.brain.t": "As células que estavam disparando",
   "defend.info.brain.b": "O circuito de fuga dela em coordenadas reais, colorido pelo transmissor que cada célula libera — âmbar excita, azul e violeta inibem. As brilhantes estavam de fato disparando naquela olhada, gravadas da simulação e não animadas. Repare no olho estimulado acendendo primeiro e na onda chegando aos descendentes um instante depois.",
   "defend.btn.to3d": "Ver em 3D",
-  "defend.btn.to2d": "Voltar ao mapa",
+  "defend.btn.to2d": "Mapa 2D",
+  "scene.escape": "O reflexo, de perto",
+  "scene.hint": "Arraste para girar · role para aproximar",
+  "scene.reset": "Redefinir câmera",
+  "scene.unavailable": "O 3D está indisponível neste dispositivo. Tente um navegador com WebGL2 habilitado.",
 };
 
 const ES = {
@@ -636,7 +644,11 @@ const ES = {
   "defend.info.brain.t": "Las células que estaban disparando",
   "defend.info.brain.b": "Su circuito de huida en coordenadas reales, coloreado por el transmisor que libera cada célula — el ámbar excita, el azul y el violeta inhiben. Las brillantes estaban disparando de verdad en ese vistazo, grabadas de la simulación y no animadas. Fíjate en el ojo estimulado encendiéndose primero y en la onda llegando a las descendentes un instante después.",
   "defend.btn.to3d": "Verlo en 3D",
-  "defend.btn.to2d": "Volver al mapa",
+  "defend.btn.to2d": "Mapa 2D",
+  "scene.escape": "El reflejo, de cerca",
+  "scene.hint": "Arrastra para girar · desplaza para acercar",
+  "scene.reset": "Restablecer cámara",
+  "scene.unavailable": "El 3D no está disponible en este dispositivo. Prueba un navegador con WebGL2 habilitado.",
 };
 
 export const LOCALES = { en: EN, pt: PT, es: ES };

@@ -64,6 +64,9 @@ export class Player {
     this.t = 0;
     this.done = false;
     this.body = { lean: 0, airborne: 0, leapUsed: false };
+    this.leapAge = 0;
+    this.leapLean = 0;
+    this._pendingAct = null;
     this.step = 0;
     this.lastP = null;
     this.urgency = 0; this.gf = 0; this.drive = { l: 0, r: 0 };
@@ -73,6 +76,7 @@ export class Player {
 
   /* advances the clock; calls back on the frames where something happens */
   update(dt, { onGlance, onAct, onEnd } = {}) {
+    if (!(dt > 0)) return;
     const run = this.run;
     if (!run) return;
     this.t += dt;
@@ -105,13 +109,24 @@ export class Player {
       const wasUsed = this.body.leapUsed;
       this.body.lean = s.lean;
       this.body.leapUsed = !!s.used;
-      if (name === 'leap' && !wasUsed) { this.body.airborne = 1; onAct?.(name, s); }
+      if (name === 'leap' && !wasUsed) {
+        this.body.airborne = 1;
+        this.leapAge = 0;
+        this.leapLean = s.lean;
+        onAct?.(name, s);
+      }
       else onAct?.(name, s);
       this.step = this.k + 1;
     }
     // airborne decays across the remaining beats exactly as it did in training
     const decay = this.rec.raw.rules?.leapDecay ?? 0.25;
     this.body.airborne = Math.max(0, this.body.airborne - decay * (dt / BEAT));
+    if (this.body.leapUsed) this.leapAge += dt;
+  }
+
+  get anticipation() {
+    if (!this._pendingAct || this.body.leapUsed || this.rec.actions[this._pendingAct.a] !== 'leap') return 0;
+    return Math.min(1, (this.t - this.k * BEAT) / (BEAT * 0.46));
   }
 
   /* fractional position of the threat, for smooth motion between glances */

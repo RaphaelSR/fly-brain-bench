@@ -417,3 +417,35 @@ main{grid-template-columns:var(--rail) minmax(0,1fr) var(--railR)}
 /* link out to a scenario page */
 .ghost.scenario{text-decoration:none; display:inline-flex; align-items:center; white-space:nowrap}
 .ghost.scenario:hover{border-color:var(--ach); color:var(--ach)}
+
+.scene-toolbar{position:absolute; z-index:2; inset:0 0 auto; display:flex; align-items:center;
+  gap:16px; padding:18px 22px; background:linear-gradient(#101c22dd,transparent); pointer-events:none}
+.scene-toolbar button{pointer-events:auto; margin-left:auto; background:#101c2280; backdrop-filter:blur(8px)}
+.scene-title{font-family:var(--fd); font-size:15px; color:var(--ink)}
+.scene-hint{font-size:11px; color:var(--ink2)}
+.view-status:empty{display:none}
+.view-status{position:absolute; inset:45% 20px auto; text-align:center; color:var(--ink2)}
+.bench .centre{grid-template-rows:minmax(0,1fr) auto}
+.fly-stage{position:relative; min-height:0; background:#101c22; overflow:hidden}
+.bench #flywell{width:100%; height:100%; display:block; touch-action:none; cursor:grab}
+.bench #flywell:active,.pane canvas.v3d:active{cursor:grabbing}
+.fly-caption{position:absolute; bottom:18px; left:22px; right:22px; display:flex; align-items:center;
+  gap:8px; font-size:11px; color:var(--ink2); pointer-events:none}
+.fly-caption span:nth-child(2){margin-left:auto}
+.fly-caption button{pointer-events:auto}
+.bench .well-wrap{height:310px; min-height:310px; flex:none; border-bottom:1px solid var(--line)}
+.bench .well-wrap .legend{display:none}
+.bench .well-hint{max-width:calc(100% - 28px); font-size:10px}
+.bench .top-stats{gap:10px}
+.bench .beh{margin-left:12px}
+@media(min-width:901px){.bench{--rail:210px;--railR:310px}.bench .top-stats span:nth-child(3){display:none}}
+@media(max-width:1100px){.bench .top-stats{display:none}.bench .top .lang{margin-left:auto}}
+@media(max-width:900px){
+  .bench main{grid-template-rows:auto auto auto}
+  .bench .centre{grid-template-rows:minmax(380px,62svh) auto}
+  .bench .well-wrap{height:340px}
+  .scene-toolbar{padding:14px;gap:10px}
+  .scene-hint{display:none}
+  .fly-caption{left:14px;right:14px;font-size:10px;flex-wrap:wrap}
+  .bench .top{flex-wrap:wrap}
+}

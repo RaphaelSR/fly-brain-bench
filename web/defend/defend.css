@@ -9,11 +9,12 @@ body.defend main{display:grid; grid-template-columns:minmax(0,1fr) 318px; min-he
 .pane{position:relative; margin:0; min-width:0; min-height:0; background:var(--well);
   display:flex; flex-direction:column}
 .pane[hidden]{display:none}   /* display:flex above would otherwise defeat the attribute */
-.pane canvas{flex:1; width:100%; min-height:0; display:block}
+.pane canvas{position:absolute; inset:0; width:100%; height:100%; display:block}
+.pane canvas.v3d{touch-action:none;cursor:grab}
 /* one canvas can hold one kind of context, so the flat view and the 3D view are
    separate canvases and only one of them is in the layout at a time */
 .pane canvas[hidden]{display:none}
-.pane figcaption{position:absolute; top:12px; left:14px; right:14px; display:flex;
+.pane figcaption{position:absolute; top:74px; left:22px; right:14px; display:flex;
   align-items:baseline; gap:10px; pointer-events:none; font-size:12px}
 .pane figcaption b{font-weight:500; color:var(--ink2); letter-spacing:.02em}
 .pane figcaption span{font-family:var(--fd); font-size:15px}
@@ -21,6 +22,11 @@ body.defend main{display:grid; grid-template-columns:minmax(0,1fr) 318px; min-he
 .pane figcaption span.safe{color:#59C78C}
 /* the second pane is the reference, so it reads as quieter than the one you chose */
 .arenas.split #paneB{opacity:.82}
+.arenas.split .pane figcaption{top:74px}
+.stage .scene-toolbar{z-index:3}
+.stage .scene-title{font-size:17px}
+.stage .view-status{z-index:4}
+body.defend .rail{padding-top:0}
 
 .stage-hud{position:absolute; left:0; right:0; bottom:0; display:flex; gap:20px;
   padding:9px 16px; font-size:11px; color:var(--ink3); pointer-events:none;
@@ -95,11 +101,21 @@ input[type=range]::-moz-range-thumb{width:13px; height:13px; border-radius:50%;
 .fine.err{color:var(--danger)}
 
 @media (max-width:900px){
-  body.defend{overflow:auto; height:auto; min-height:100%}
-  body.defend main{grid-template-columns:minmax(0,1fr); grid-template-rows:56vh auto}
+  body.defend{display:flex;flex-direction:column;overflow:auto;height:auto;min-height:100%}
+  body.defend main{display:contents}
+  body.defend .top{order:0}
+  body.defend .stage{order:1;flex:none;height:clamp(380px,56svh,520px)}
+  body.defend .stage:has(.arenas.split){height:700px}
+  body.defend .transport{order:2}
+  body.defend .rail{order:3}
   .rail{border-left:0; border-top:1px solid var(--line)}
   .top-stats{display:none}
   .arenas.split{grid-template-columns:1fr; grid-template-rows:1fr 1fr}
   .transport{gap:10px}
   .scrub{order:5; flex-basis:100%}
+  .top{flex-wrap:wrap;gap:10px}
+  .top .lang{margin-left:auto}
+  .stage-hud{flex-wrap:wrap;gap:4px 12px;font-size:10px}
+  .arenas.split #paneB figcaption{top:12px}
+  .transport button{min-height:40px}
 }

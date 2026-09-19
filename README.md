@@ -2,7 +2,8 @@
 
 Stimulate a population of neurons in a real fruit fly's brain, watch the spikes
 spread through 2.7 million measured connections, and see the body they drive — in a
-browser tab, at 60 fps, with no dependencies.
+browser tab. The articulated fly is rendered in Three.js; the neural engine is
+plain JavaScript with no runtime dependencies.
 
 Available in English, Portuguese and Spanish.
 
@@ -53,8 +54,10 @@ are named, well-studied channels, and the decoder reads them directly:
 | `DNp10`, `DNp07` | 4 | Leg extension for landing. |
 | `MN10`, `MNx01`, `MNx03` | 8 | Proboscis motor neurons — extend to feed. |
 
-The fly itself is procedural geometry — no mesh, no library — and she lives in a
-small world rather than floating in space:
+The fly is procedural geometry rendered with a locally bundled, pinned Three.js
+r180. She is the primary view on the bench, with the connectome beside her. The
+scene uses physically based materials, translucent veined wings, compound eyes,
+directional lighting and ground shadows:
 
 - **Axes follow the fly convention**: +Z anterior, +Y dorsal, +X to her right; yaw
   about Y, pitch about X, roll about Z. She banks into turns and pitches nose-up on
@@ -66,7 +69,9 @@ small world rather than floating in space:
   femur, tibia, tarsus — so the pose is geometry rather than a canned animation.
 - Wings fold back over the abdomen at rest and sweep into a tilted figure-eight
   stroke in flight; halteres beat in antiphase, as they do in a real fly.
-- She walks across a ground plane, casts a contact shadow, and the camera trails her.
+- She walks across a ground plane and casts a shadow. The camera follows her
+  position without rotating on its own. Drag to orbit, scroll to zoom, and use
+  **Reset camera** (or double-click) to return to the initial view.
 
 Two results worth trying:
 
@@ -110,9 +115,13 @@ recorder freezes the policy and shows her **the same twelve threats**, so any tw
 points in the training are directly comparable: same approach, same angle, and the
 only difference is what she has learned. That is what the compare button does.
 
-Two views of the same state: a flat map, which reads the geometry best, and a 3D
-view built on the bench's own fly, where you can see her roll away and tuck her
-legs — and the eye that lights up is the eye being driven.
+The scenario opens in **3D**, sharing the bench's fly. Preparation, leaning,
+takeoff, leg tucking and landing follow the recorded decisions; a wrong-way leap
+is shown going the wrong way. The camera keeps a stable angle across trials,
+including side-by-side comparisons. The **2D map** remains available. Pausing
+freezes the body and approach, and playback speed controls their animation together.
+The eye that lights up is the eye being driven. Both pages start paused when the
+device requests reduced motion.
 
 **The control is one button.** "Shuffle her wiring" loads the same run on the same
 subcircuit rewired at random with every neuron's in- and out-degree preserved. It
@@ -213,6 +222,9 @@ JavaScript — activity in this model is extremely sparse.
 
 ### Measured performance
 
+These are the original neural-engine and point-cloud benchmarks, excluding the
+current Three.js body. They are not an end-to-end benchmark of the new 3D scene.
+
 Chrome, Apple Silicon, full 138,639-neuron brain with 2,700,513 connections:
 
 | | |
@@ -286,6 +298,16 @@ python3 tools/serve.py 8123
 Then open <http://localhost:8123>. It must be served over http — ES modules and
 web workers do not work from `file://`. Requires WebGL2.
 
+Three.js is served from `web/vendor/three/`, including its MIT license; no npm
+install or build step is required to run the site. The renderer caps pixel ratio
+at 1.75, reuses geometry and only creates the second 3D scene when comparing.
+
+Animation regression checks (Node 20+):
+
+```bash
+node --experimental-default-type=module --test tests/animation.test.mjs
+```
+
 `tools/serve.py` is `http.server` with caching switched off, which matters more
 than it sounds: Python's default sends no `Cache-Control`, browsers fall back to
 heuristic caching, and an edited ES module simply does not load. That fails in a
@@ -331,7 +353,8 @@ web/
     gl.js           WebGL2 point cloud, ~230 lines, no library
     data.js         gzip + LEB128 + CSR reconstruction
     presets.js      stimulus groups, resolved against real cell-type annotations
-    fly.js          procedural articulated fly, tripod gait, own WebGL2 context
+    fly.js          Three.js scene, lighting, camera controls and rendering
+    fly-rig.js      procedural fly, articulated legs, planted tripod gait and wings
     lif-core.js     the LIF engine as a class — the worker and the trainer share it
     decoder.js      descending-neuron channels + the trainable logistic readout
     i18n.js         English / Portuguese / Spanish

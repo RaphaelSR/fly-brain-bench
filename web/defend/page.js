@@ -34,7 +34,7 @@ const S = {
   threatA: null, threatB: null,
   brain: null, geom: null, labels: null, meta: null,
   actTarget: null, nActive: 0,
-  playing: true, speed: 2, compare: false, follow: true,
+  playing: !matchMedia('(prefers-reduced-motion: reduce)').matches, speed: 1, compare: false, follow: true,
   last: 0, cp: 0,
 };
 
@@ -79,6 +79,7 @@ async function boot() {
     setCheckpoint(0);
 
     wire();
+    switchMode('3d');
     paintArc();
     $('#boot').classList.add('done');
     setTimeout(() => $('#boot').remove(), 600);
@@ -131,6 +132,11 @@ function armRun(angle) {
   for (const el of document.querySelectorAll('[data-verdict]')) { el.textContent = ''; el.className = ''; }
   const a = S.rec.angles[angle];
   $('#hudAngle').textContent = t(a > 0 ? 'defend.approach.right' : 'defend.approach.left', { a: Math.abs(a).toFixed(2) });
+  $('#hudGlance').textContent = t('defend.glance', { k: 1, n: S.rec.glances });
+  S.brain.act.fill(0);
+  lightBrain(0);
+  const first = S.A.run?.steps[0];
+  if (first) { paintSignal(first); paintProbs(first.p, first.a); }
 }
 
 /* the next approach, and — while following — the next point in the training */
@@ -165,7 +171,7 @@ function loop(now) {
       paintProbs(s.p, s.a);
       $('#hudGlance').textContent = t('defend.glance', { k: gi + 1, n: S.rec.glances });
     },
-    onAct: (name) => { if (name === 'leap') view(0).leap(-Math.sign(S.threatA.a) || 1); },
+    onAct: (name, s) => { if (name === 'leap') view(0).leap(s.lean); },
     onEnd: (run, justEnded) => {
       if (justEnded) {
         S.threatA.step = S.rec.glances;
@@ -177,7 +183,7 @@ function loop(now) {
   if (S.compare) {
     S.B.update(k, {
       onGlance: () => view(1).glance(),
-      onAct: (name) => { if (name === 'leap') view(1).leap(-Math.sign(S.threatB.a) || 1); },
+      onAct: (name, s) => { if (name === 'leap') view(1).leap(s.lean); },
       onEnd: (run, justEnded) => {
         if (justEnded) {
           S.threatB.step = S.rec.glances;
@@ -189,9 +195,9 @@ function loop(now) {
   }
 
   if (!document.hidden) {
-    drawPane(view(0), S.A, S.threatA, dt);
-    if (S.compare) drawPane(view(1), S.B, S.threatB, dt);
-    decayBrain(dt);
+    drawPane(view(0), S.A, S.threatA, k);
+    if (S.compare) drawPane(view(1), S.B, S.threatB, k);
+    if (S.playing) decayBrain(dt);
     S.brain.draw(dt);
   }
   schedule();
@@ -199,9 +205,10 @@ function loop(now) {
 
 function drawPane(view, player, threat, dt) {
   threat.step = Math.min(player.step, 7);
-  threat.interpolate(dt * (S.playing ? Math.max(S.speed, 1) : 1));
+  threat.interpolate(dt);
   view.draw({ threat, drive: player.drive, lean: player.body.lean,
-    airborne: player.body.airborne, leapUsed: player.body.leapUsed }, dt);
+    airborne: player.body.airborne, leapUsed: player.body.leapUsed,
+    leapAge: player.leapAge, leapLean: player.leapLean, anticipation: player.anticipation }, dt);
 }
 function impactPoint(v) {
   return [v.c.clientWidth / 2, v.c.clientHeight / 2];
@@ -347,11 +354,15 @@ function wire() {
     $('#speedOut').textContent = `${S.speed}×`;
   });
   $('#btnDim').addEventListener('click', () => switchMode(S.mode === '2d' ? '3d' : '2d'));
+  $('#btnCamera').addEventListener('click', () => {
+    for (const v of S.views['3d']) v?.view.resetCamera();
+  });
   $('#btnFollow').addEventListener('click', () => {
     S.follow = !S.follow;
     $('#btnFollow').setAttribute('aria-pressed', String(S.follow));
   });
   $('#btnCompare').addEventListener('click', () => {
+    if (!S.compare && S.mode === '3d' && !ensure3D(1)) return;
     S.compare = !S.compare;
     $('#paneB').hidden = !S.compare;
     $('#arenas').classList.toggle('split', S.compare);
@@ -381,22 +392,27 @@ function wire() {
 
 /* The 3D views are built the first time they are asked for: each one costs a
    WebGL context, and a browser will only hand out so many. */
-function switchMode(to) {
-  if (to === '3d' && !S.views['3d'][0]) {
-    try {
-      S.views['3d'] = [new Arena3D($('#paneA canvas.v3d')), new Arena3D($('#paneB canvas.v3d'))];
-      for (const v of S.views['3d']) v.labels = { contact: t('defend.contact') };
-    } catch (err) {
-      console.warn('3D view unavailable', err);
-      return;
-    }
+function ensure3D(index) {
+  if (S.views['3d'][index]) return true;
+  try {
+    S.views['3d'][index] = new Arena3D($(index ? '#paneB canvas.v3d' : '#paneA canvas.v3d'));
+    return true;
+  } catch (err) {
+    $('#viewStatus').textContent = t('scene.unavailable');
+    console.warn('3D view unavailable', err);
+    return false;
   }
+}
+function switchMode(to) {
+  if (to === '3d' && (!ensure3D(0) || (S.compare && !ensure3D(1)))) return;
   S.mode = to;
   const three = to === '3d';
   for (const c of document.querySelectorAll('.pane canvas.v2d')) c.hidden = three;
   for (const c of document.querySelectorAll('.pane canvas.v3d')) c.hidden = !three;
   $('#btnDim').textContent = t(three ? 'defend.btn.to2d' : 'defend.btn.to3d');
   $('#btnDim').setAttribute('aria-pressed', String(three));
+  $('#btnCamera').hidden = !three;
+  $('#cameraHint').hidden = !three;
   armRun(S.A.angle);
 }
 
@@ -448,6 +464,7 @@ function bindInfo() {
   });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') $('#infoPop').classList.remove('open');
+    if (e.target.closest('button, input, select, textarea, [contenteditable]')) return;
     if (e.key === ' ') { e.preventDefault(); $('#btnPlay').click(); }
     if (e.key === 'ArrowLeft') setCheckpoint(S.cp - 1, true);
     if (e.key === 'ArrowRight') setCheckpoint(S.cp + 1, true);
