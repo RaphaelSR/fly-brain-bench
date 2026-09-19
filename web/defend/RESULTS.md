@@ -5,7 +5,7 @@ Everything here is reproducible from the repository root:
 ```
 node tools/28_direction_check.mjs [--shuffled]     can she tell left from right?
 node tools/29_urgency_check.mjs                    does her response track distance?
-node tools/train.mjs 600 --seed 66 --lr 0.8 --replay
+node tools/train.mjs 600 --seed 66 --lr 0.8 --replay    # writes what the page plays
 ```
 
 A 600-episode run takes about 25 seconds. The control is the same subcircuit

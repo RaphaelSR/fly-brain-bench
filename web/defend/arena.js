@@ -80,6 +80,7 @@ export class ArenaView {
     this.eyeR = new Spring(0, 11);
     this.leapDir = 0;
     this.wing = 0;
+    this.labels = { contact: 'contact' };
   }
 
   /* --- events the page fires at it --- */
@@ -204,7 +205,7 @@ export class ArenaView {
     g.font = '9px "IBM Plex Mono", ui-monospace, monospace';
     g.fillStyle = 'rgba(232,101,75,.55)';
     g.textAlign = 'center';
-    g.fillText('contact', cx, cy + R * 0.34 + 13);
+    g.fillText(this.labels.contact, cx, cy + R * 0.34 + 13);
     g.textAlign = 'left';
   }
 

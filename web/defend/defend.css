@@ -10,6 +10,9 @@ body.defend main{display:grid; grid-template-columns:minmax(0,1fr) 318px; min-he
   display:flex; flex-direction:column}
 .pane[hidden]{display:none}   /* display:flex above would otherwise defeat the attribute */
 .pane canvas{flex:1; width:100%; min-height:0; display:block}
+/* one canvas can hold one kind of context, so the flat view and the 3D view are
+   separate canvases and only one of them is in the layout at a time */
+.pane canvas[hidden]{display:none}
 .pane figcaption{position:absolute; top:12px; left:14px; right:14px; display:flex;
   align-items:baseline; gap:10px; pointer-events:none; font-size:12px}
 .pane figcaption b{font-weight:500; color:var(--ink2); letter-spacing:.02em}
@@ -40,8 +43,11 @@ body.shuffled .stage-hud span:last-child{color:var(--danger)}
 
 /* what she gave each option, and which one she took */
 .probs{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px}
-.probs li{display:grid; grid-template-columns:62px 1fr 34px; align-items:center; gap:9px;
+.probs li{display:grid; grid-template-columns:92px 1fr 34px; align-items:center; gap:9px;
   font-size:11.5px; color:var(--ink3); transition:color .15s}
+/* the longest label is Spanish "inclinarse a la izquierda"; let it shrink rather
+   than wrap, so the four rows stay the same height in every language */
+.probs .pl{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .probs li.chosen{color:var(--ink)}
 .pb{height:7px; background:var(--line); border-radius:4px; overflow:hidden}
 .pb i{display:block; height:100%; width:0; border-radius:4px; background:var(--line2);

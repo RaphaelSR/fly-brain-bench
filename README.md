@@ -6,7 +6,7 @@ browser tab, at 60 fps, with no dependencies.
 
 Available in English, Portuguese and Spanish.
 
-**[Open the bench →](https://raphaelsr.github.io/fly-brain-bench/)**
+**[Open the bench →](https://raphaelsr.github.io/fly-brain-bench/)**  ·  **[Escape Reflex →](https://raphaelsr.github.io/fly-brain-bench/defend/)**
 
 ---
 
@@ -88,6 +88,55 @@ nearest first.
 labels are on, so a link opens on exactly what you were looking at:
 `?stim=loom&lang=pt&regions=1`, or `?type=LPLC2` for a cell type you picked
 yourself.
+
+## Escape Reflex — the scenario at `/defend`
+
+The bench lets you poke her and watch what happens. The scenario asks a harder
+question: **can anything be learned on top of this wiring, and does the wiring
+matter?**
+
+Something closes on her over seven glances. Each glance she can hold still, lean
+left, lean right, or leap — and she only gets one leap. She escapes if she is off
+the ground when it arrives *and* leaning away from it, because a fly that leaps
+into the thing is still hit. A linear readout over 48 descending populations is
+trained by REINFORCE; her brain does not change, because a connectome has no
+plasticity.
+
+The page does not train — six hundred episodes of a spiking network is not
+something you watch in a tab. It plays back a recording made by
+`tools/train.mjs`, which is the same engine and the same policy with nothing else
+on the thread, and takes about twenty-five seconds. Every twenty-five episodes the
+recorder freezes the policy and shows her **the same twelve threats**, so any two
+points in the training are directly comparable: same approach, same angle, and the
+only difference is what she has learned. That is what the compare button does.
+
+Two views of the same state: a flat map, which reads the geometry best, and a 3D
+view built on the bench's own fly, where you can see her roll away and tuck her
+legs — and the eye that lights up is the eye being driven.
+
+**The control is one button.** "Shuffle her wiring" loads the same run on the same
+subcircuit rewired at random with every neuron's in- and out-degree preserved. It
+differs from the connectome only in which neuron connects to which.
+
+| six seeds, 600 episodes | real connectome | shuffled control |
+|---|---:|---:|
+| escaped, last 50 episodes | **81%** | 46% |
+| frozen policy on 12 fixed threats | **78%** | 53% |
+| — leaned the right way | **97%** | 78% |
+
+Per seed the last-50 figures are 74–88% against 32–54%: no overlap. The aim number
+is the one that matters — with her own wiring she leans away from the threat on 97%
+of trials, and five of six seeds get it right every single time. Timing survives a
+shuffle far better than direction does, which is what you would expect: knowing
+*when* needs only that something is getting louder, and knowing *which way* needs
+the anatomy.
+
+[**web/defend/RESULTS.md**](web/defend/RESULTS.md) has the rest, including the
+three earlier versions of the task that the control caught as solvable without the
+connectome, and the three bugs in the learning rule that made a working setup look
+like a network that could not learn.
+
+---
 
 ## Teaching the decoder
 
@@ -230,12 +279,30 @@ Reproduce with `tools/09_validate.py`.
 
 ```bash
 git clone https://github.com/RaphaelSR/fly-brain-bench.git
-cd fly-brain-bench/web
-python3 -m http.server 8000
+cd fly-brain-bench
+python3 tools/serve.py 8123
 ```
 
-Then open <http://localhost:8000>. It must be served over http — ES modules and
+Then open <http://localhost:8123>. It must be served over http — ES modules and
 web workers do not work from `file://`. Requires WebGL2.
+
+`tools/serve.py` is `http.server` with caching switched off, which matters more
+than it sounds: Python's default sends no `Cache-Control`, browsers fall back to
+heuristic caching, and an edited ES module simply does not load. That fails in a
+way that looks like a logic bug rather than a stale file, and it has cost this
+project real time twice.
+
+### Training the escape scenario yourself
+
+```bash
+node tools/train.mjs 600 --seed 66 --lr 0.8 --replay   # ~25 s, writes what the page plays
+node tools/train.mjs 600 --seed 66 --lr 0.8 --shuffled --quiet
+node tools/28_direction_check.mjs                      # can she tell left from right?
+node tools/29_urgency_check.mjs                        # does her response track distance?
+```
+
+No dependencies — it imports the page's own modules through `tools/rig.mjs`, so
+there is no second implementation to drift.
 
 ### Rebuilding the data from source
 
@@ -265,11 +332,24 @@ web/
     data.js         gzip + LEB128 + CSR reconstruction
     presets.js      stimulus groups, resolved against real cell-type annotations
     fly.js          procedural articulated fly, tripod gait, own WebGL2 context
+    lif-core.js     the LIF engine as a class — the worker and the trainer share it
     decoder.js      descending-neuron channels + the trainable logistic readout
     i18n.js         English / Portuguese / Spanish
     app.js          UI and the frame loop
+  defend/           the Escape Reflex scenario
+    policy.js       the task rules and the learning rule, browser-free
+    arena.js        the flat arena
+    arena3d.js      the same state, seen from inside it
+    replay.js       playback over a recorded run
+    page.js         UI and the frame loop
+    data/           the looming subcircuit, plus two recorded runs
+    RESULTS.md      every number the scenario claims, and how to reproduce it
   data/             8.4 MB of packed connectome
-tools/              Python pipeline: fetch, measure, validate, pack
+tools/
+  serve.py          dev server with caching off
+  rig.mjs           the measurement rig the trainer and the diagnostics share
+  train.mjs         headless trainer and replay recorder
+  *.py              pipeline: fetch, measure, validate, pack
 ```
 
 ---

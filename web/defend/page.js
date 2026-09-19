@@ -12,8 +12,10 @@
    identical angle, and the only difference is what she has learned. */
 
 import { fetchGz, decodeLabels, decodePositions } from '../js/data.js';
+import { LOCALES, detectLocale, setLocale, getLocale, t, applyDom } from '../js/i18n.js';
 import { BrainView } from '../js/gl.js';
 import { Threat, ArenaView } from './arena.js';
+import { Arena3D } from './arena3d.js';
 import { Recording, Player, BEAT } from './replay.js';
 
 const $ = s => document.querySelector(s);
@@ -23,20 +25,12 @@ const NT_COLOUR = {
   serotonin: [0.90, 0.45, 0.65], octopamine: [0.30, 0.78, 0.80],
   unknown: [0.45, 0.52, 0.55],
 };
-const INFO = {
-  arc: ['Watching her get it',
-    'Every twenty-five episodes her learning is paused and she is shown the same twelve threats, with the guessing turned off. The line is how many she escaped. Two points on it are directly comparable — same approach from the same angle — so what changes between them is only what she has learned. Nothing about her brain changes: a connectome records wiring, not plasticity, so what learns is a readout sitting on top of it.'],
-  probs: ['Her four options',
-    'Hold still, lean left, lean right, or leap — and she only gets one leap. The bars are what the readout gave each option at that glance, before anything was chosen. Early on they sit near a quarter each, which is another way of saying she is guessing. Escaping needs both halves: off the ground when it arrives, and leaning away from it. A fly that leaps into the thing is still hit.'],
-  gf: ['What her eyes put into her',
-    'LPLC2 are looming detectors, and they fire when something expands in the visual field. The two eye bars are how hard each side is being driven, which is the only cue to direction she has. Urgency is how much her descending neurons rose in response, which grows as the thing closes — that is the cue to timing. DNp01 is the giant fibre: a real fly has one pair, and a single spike in them launches the escape.'],
-  brain: ['The cells that were firing',
-    'Her escape circuit at real coordinates, coloured by the transmitter each cell releases — amber excites, blue and violet inhibit. The bright ones were actually spiking during that glance, recorded from the simulation rather than animated. Watch the driven eye light first and the wave arrive at the descending neurons a moment later.'],
-};
+const INFO = ['arc', 'probs', 'gf', 'brain'];
 
 const S = {
   rec: null, recs: {}, wiring: 'real',
-  A: null, B: null, viewA: null, viewB: null,
+  A: null, B: null,
+  views: { '2d': [null, null], '3d': [null, null] }, mode: '2d',
   threatA: null, threatB: null,
   brain: null, geom: null, labels: null, meta: null,
   actTarget: null, nActive: 0,
@@ -46,22 +40,25 @@ const S = {
 
 /* ------------------------------------------------------------------ boot */
 async function boot() {
-  const step = (label, f) => {
-    $('#loadLabel').textContent = label;
+  const step = (key, f) => {
+    $('#loadLabel').dataset.i18n = key;
+    $('#loadLabel').textContent = t(key);
     $('#loadBar').style.width = `${Math.round(f * 100)}%`;
   };
+  setLocale(new URLSearchParams(location.search).get('lang') || detectLocale());
+  applyDom();
   try {
-    step('Reading cell types', 0.15);
+    step('defend.load.labels', 0.15);
     const meta = JSON.parse(new TextDecoder().decode(await fetchGz('data/meta.json.gz')));
     S.meta = meta;
     const N = meta.n_neurons;
     S.labels = decodeLabels(await fetchGz('data/labels.bin.gz'), N);
-    step('Placing neurons', 0.4);
+    step('defend.load.pos', 0.4);
     S.geom = decodePositions(await fetchGz('data/pos.u16.bin.gz'), N, meta.bbox_lo, meta.span);
-    step('Loading the run', 0.65);
+    step('defend.load.run', 0.65);
     S.recs.real = await Recording.load('data/replay.json.gz');
     S.rec = S.recs.real;
-    step('Ready', 1);
+    step('defend.load.ready', 1);
 
     S.brain = new BrainView($('#brain'), S.geom.pos, S.labels.nt, S.geom.radius);
     S.brain.setNTColors(meta.dicts.top_nt.map(n => NT_COLOUR[n] || NT_COLOUR.unknown));
@@ -76,8 +73,7 @@ async function boot() {
     S.brain.bloomThreshold = 0.38;
     S.actTarget = new Float32Array(N);
 
-    S.viewA = new ArenaView($('#paneA canvas'));
-    S.viewB = new ArenaView($('#paneB canvas'));
+    S.views['2d'] = [new ArenaView($('#paneA canvas.v2d')), new ArenaView($('#paneB canvas.v2d'))];
     S.A = new Player(S.rec);
     S.B = new Player(S.rec);
     setCheckpoint(0);
@@ -89,8 +85,8 @@ async function boot() {
     S.last = performance.now();
     schedule();
   } catch (err) {
-    $('#loadLabel').textContent = 'Could not start';
-    $('#loadDetail').innerHTML = `<strong>${esc(err.message)}</strong><br>Needs WebGL2 and an http origin.`;
+    $('#loadLabel').textContent = t('boot.failed');
+    $('#loadDetail').innerHTML = `<strong>${esc(err.message)}</strong><br>${t('boot.failhint')}`;
     $('#loadDetail').classList.add('err');
     console.error(err);
   }
@@ -114,25 +110,27 @@ function setCheckpoint(i, fromUser) {
 function applyCheckpoint() {
   const cp = S.rec.checkpoints[S.cp];
   $('#scrub').value = String(S.cp);
-  $('#scrubOut').textContent = `episode ${cp.ep}`;
+  $('#scrubOut').textContent = t('defend.ep', { n: cp.ep });
   $('#mEp').textContent = cp.ep;
   $('#mScore').textContent = `${Math.round(cp.score * 100)}%`;
   $('#mAim').textContent = `${Math.round(cp.aimed * 100)}%`;
-  $('#paneA [data-ep]').textContent = `episode ${cp.ep}`;
-  $('#paneB [data-ep]').textContent = `episode ${S.rec.checkpoints[0].ep}`;
+  $('#paneA [data-ep]').textContent = t('defend.ep', { n: cp.ep });
+  $('#paneB [data-ep]').textContent = t('defend.ep', { n: S.rec.checkpoints[0].ep });
   paintArc();
 }
 
+const view = i => S.views[S.mode][i];
+const allViews = () => [...S.views['2d'], ...S.views['3d']].filter(Boolean);
+
 /* set both panes up for one approach */
 function armRun(angle) {
-  for (const [p, v] of [[S.A, S.viewA], [S.B, S.viewB]]) {
-    p.angle = angle; p.reset(); v.reset();
-  }
+  for (const p of [S.A, S.B]) { p.angle = angle; p.reset(); }
+  for (const v of allViews()) v.reset();
   S.threatA = new Threat(S.rec.angles[angle]);
   S.threatB = new Threat(S.rec.angles[angle]);
   for (const el of document.querySelectorAll('[data-verdict]')) { el.textContent = ''; el.className = ''; }
   const a = S.rec.angles[angle];
-  $('#hudAngle').textContent = `approach ${a > 0 ? 'right' : 'left'} ${Math.abs(a).toFixed(2)} rad`;
+  $('#hudAngle').textContent = t(a > 0 ? 'defend.approach.right' : 'defend.approach.left', { a: Math.abs(a).toFixed(2) });
 }
 
 /* the next approach, and — while following — the next point in the training */
@@ -161,38 +159,38 @@ function loop(now) {
 
   S.A.update(k, {
     onGlance: (gi, s) => {
-      S.viewA.glance();
+      view(0).glance();
       lightBrain(gi);
       paintSignal(s);
       paintProbs(s.p, s.a);
-      $('#hudGlance').textContent = `glance ${gi + 1} of ${S.rec.glances}`;
+      $('#hudGlance').textContent = t('defend.glance', { k: gi + 1, n: S.rec.glances });
     },
-    onAct: (name, s) => { if (name === 'leap') S.viewA.leap(-Math.sign(S.threatA.a) || 1); },
+    onAct: (name) => { if (name === 'leap') view(0).leap(-Math.sign(S.threatA.a) || 1); },
     onEnd: (run, justEnded) => {
       if (justEnded) {
         S.threatA.step = S.rec.glances;
         markVerdict($('#paneA'), run.ok);
-        if (!run.ok) S.viewA.impact(...impactPoint(S.viewA, S.threatA));
+        if (!run.ok) view(0).impact(...impactPoint(view(0)));
       } else nextRun();
     },
   });
   if (S.compare) {
     S.B.update(k, {
-      onGlance: () => S.viewB.glance(),
-      onAct: (name) => { if (name === 'leap') S.viewB.leap(-Math.sign(S.threatB.a) || 1); },
+      onGlance: () => view(1).glance(),
+      onAct: (name) => { if (name === 'leap') view(1).leap(-Math.sign(S.threatB.a) || 1); },
       onEnd: (run, justEnded) => {
         if (justEnded) {
           S.threatB.step = S.rec.glances;
           markVerdict($('#paneB'), run.ok);
-          if (!run.ok) S.viewB.impact(...impactPoint(S.viewB, S.threatB));
+          if (!run.ok) view(1).impact(...impactPoint(view(1)));
         }
       },
     });
   }
 
   if (!document.hidden) {
-    drawPane(S.viewA, S.A, S.threatA, dt);
-    if (S.compare) drawPane(S.viewB, S.B, S.threatB, dt);
+    drawPane(view(0), S.A, S.threatA, dt);
+    if (S.compare) drawPane(view(1), S.B, S.threatB, dt);
     decayBrain(dt);
     S.brain.draw(dt);
   }
@@ -205,13 +203,12 @@ function drawPane(view, player, threat, dt) {
   view.draw({ threat, drive: player.drive, lean: player.body.lean,
     airborne: player.body.airborne, leapUsed: player.body.leapUsed }, dt);
 }
-function impactPoint(view, threat) {
-  const w = view.c.clientWidth, h = view.c.clientHeight;
-  return [w / 2, h / 2];
+function impactPoint(v) {
+  return [v.c.clientWidth / 2, v.c.clientHeight / 2];
 }
 function markVerdict(pane, ok) {
   const el = pane.querySelector('[data-verdict]');
-  el.textContent = ok ? 'clear' : 'hit';
+  el.textContent = t(ok ? 'defend.verdict.safe' : 'defend.verdict.hit');
   el.className = ok ? 'safe' : 'hit';
 }
 
@@ -247,7 +244,7 @@ function lightBrain(gi) {
     for (const i of right) sel[i] = Math.min(1, step.r * 1.4);
   }
   S.brain.uploadSel();
-  $('#mActive').textContent = S.nActive ? `${S.nActive} firing` : '';
+  $('#mActive').textContent = S.nActive ? t('defend.firing', { n: S.nActive }) : '';
 }
 function decayBrain(dt) {
   const act = S.brain.act;
@@ -272,8 +269,9 @@ function paintSignal(s) {
 function paintProbs(p, chosen) {
   const box = $('#probs');
   if (!box.children.length) {
-    box.innerHTML = S.rec.actions.map(a =>
-      `<li><span class="pl">${a}</span><span class="pb"><i></i></span><span class="pv mono"></span></li>`).join('');
+    box.innerHTML = S.rec.actions.map((_, i) =>
+      `<li><span class="pl" data-i18n="defend.act.${i}">${t(`defend.act.${i}`)}</span>` +
+      `<span class="pb"><i></i></span><span class="pv mono"></span></li>`).join('');
   }
   [...box.children].forEach((li, i) => {
     li.querySelector('i').style.width = `${Math.round(p[i] * 100)}%`;
@@ -309,7 +307,7 @@ function paintArc() {
   g.setLineDash([]);
   g.font = '9px "IBM Plex Mono", ui-monospace, monospace';
   g.fillStyle = '#66787F';
-  g.fillText('chance', pad.l + 1, Y(0.25) - 3);
+  g.fillText(t('defend.chance'), pad.l + 1, Y(0.25) - 3);
 
   // the aim rate behind, which is the part the wiring is responsible for
   g.beginPath();
@@ -332,16 +330,15 @@ function paintArc() {
   g.fillStyle = '#FFF1D8'; g.fill();
 
   const cp = cps[S.cp];
-  $('#arcNote').innerHTML =
-    `At episode <b>${cp.ep}</b> she escaped <b>${Math.round(cp.score * 100)}%</b> of the twelve, ` +
-    `leaning the right way on <b>${Math.round(cp.aimed * 100)}%</b>.`;
+  $('#arcNote').innerHTML = t('defend.arcnote', {
+    ep: cp.ep, s: Math.round(cp.score * 100), a: Math.round(cp.aimed * 100) });
 }
 
 /* ----------------------------------------------------------------- wiring */
 function wire() {
   $('#btnPlay').addEventListener('click', () => {
     S.playing = !S.playing;
-    $('#btnPlay').textContent = S.playing ? 'Pause' : 'Play';
+    $('#btnPlay').textContent = t(S.playing ? 'defend.btn.pause' : 'defend.btn.play');
   });
   $('#scrub').max = String(S.rec.checkpoints.length - 1);
   $('#scrub').addEventListener('input', e => setCheckpoint(+e.target.value, true));
@@ -349,6 +346,7 @@ function wire() {
     S.speed = +e.target.value;
     $('#speedOut').textContent = `${S.speed}×`;
   });
+  $('#btnDim').addEventListener('click', () => switchMode(S.mode === '2d' ? '3d' : '2d'));
   $('#btnFollow').addEventListener('click', () => {
     S.follow = !S.follow;
     $('#btnFollow').setAttribute('aria-pressed', String(S.follow));
@@ -358,7 +356,7 @@ function wire() {
     $('#paneB').hidden = !S.compare;
     $('#arenas').classList.toggle('split', S.compare);
     $('#btnCompare').setAttribute('aria-pressed', String(S.compare));
-    $('#btnCompare').textContent = S.compare ? 'Single view' : 'Compare with episode 0';
+    $('#btnCompare').textContent = t(S.compare ? 'defend.btn.single' : 'defend.btn.compare');
     armRun(S.A.angle);
   });
   $('#btnWiring').addEventListener('click', swapWiring);
@@ -373,8 +371,33 @@ function wire() {
     addEventListener('pointermove', move); addEventListener('pointerup', up);
   });
   addEventListener('resize', paintArc);
+  const sel = $('#lang');
+  sel.innerHTML = Object.keys(LOCALES).map(c => `<option value="${c}">${LOCALES[c]['lang.name']}</option>`).join('');
+  sel.value = getLocale();
+  sel.addEventListener('change', () => { setLocale(sel.value); applyDom(); relabel(); });
   bindInfo();
-  $('#hudWiring').textContent = 'her own wiring';
+  relabel();
+}
+
+/* The 3D views are built the first time they are asked for: each one costs a
+   WebGL context, and a browser will only hand out so many. */
+function switchMode(to) {
+  if (to === '3d' && !S.views['3d'][0]) {
+    try {
+      S.views['3d'] = [new Arena3D($('#paneA canvas.v3d')), new Arena3D($('#paneB canvas.v3d'))];
+      for (const v of S.views['3d']) v.labels = { contact: t('defend.contact') };
+    } catch (err) {
+      console.warn('3D view unavailable', err);
+      return;
+    }
+  }
+  S.mode = to;
+  const three = to === '3d';
+  for (const c of document.querySelectorAll('.pane canvas.v2d')) c.hidden = three;
+  for (const c of document.querySelectorAll('.pane canvas.v3d')) c.hidden = !three;
+  $('#btnDim').textContent = t(three ? 'defend.btn.to2d' : 'defend.btn.to3d');
+  $('#btnDim').setAttribute('aria-pressed', String(three));
+  armRun(S.A.angle);
 }
 
 /* The control, one button away: the same subcircuit rewired at random with every
@@ -386,7 +409,7 @@ async function swapWiring() {
   btn.disabled = true;
   try {
     if (!S.recs[to]) {
-      btn.textContent = 'Loading…';
+      btn.textContent = t('defend.btn.loading');
       S.recs[to] = await Recording.load(to === 'shuf' ? 'data/replay.shuf.json.gz' : 'data/replay.json.gz');
     }
     S.wiring = to;
@@ -396,9 +419,9 @@ async function swapWiring() {
   } finally {
     btn.disabled = false;
     const shuffled = S.wiring === 'shuf';
-    btn.textContent = shuffled ? 'Put her wiring back' : 'Shuffle her wiring';
+    btn.textContent = t(shuffled ? 'defend.btn.unshuffle' : 'defend.btn.shuffle');
     btn.setAttribute('aria-pressed', String(shuffled));
-    $('#hudWiring').textContent = shuffled ? 'rewired at random — degrees preserved' : 'her own wiring';
+    $('#hudWiring').textContent = t(shuffled ? 'defend.wiring.shuf' : 'defend.wiring.real');
     document.body.classList.toggle('shuffled', shuffled);
   }
 }
@@ -413,9 +436,8 @@ function bindInfo() {
     if (!b) { if (!e.target.closest('#infoPop')) pop.classList.remove('open'); return; }
     if (pop.classList.contains('open') && pop.dataset.k === b.dataset.info) { pop.classList.remove('open'); return; }
     pop.dataset.k = b.dataset.info;
-    const [h, p] = INFO[b.dataset.info];
-    pop.querySelector('h4').textContent = h;
-    pop.querySelector('p').textContent = p;
+    pop.querySelector('h4').textContent = t(`defend.info.${b.dataset.info}.t`);
+    pop.querySelector('p').textContent = t(`defend.info.${b.dataset.info}.b`);
     pop.classList.add('open');
     const r = b.getBoundingClientRect();
     pop.style.visibility = 'hidden'; pop.style.left = '0'; pop.style.top = '0';
@@ -430,6 +452,19 @@ function bindInfo() {
     if (e.key === 'ArrowLeft') setCheckpoint(S.cp - 1, true);
     if (e.key === 'ArrowRight') setCheckpoint(S.cp + 1, true);
   });
+}
+
+/* everything rendered from JS has to be redrawn when the language changes */
+function relabel() {
+  applyDom();
+  $('#btnPlay').textContent = t(S.playing ? 'defend.btn.pause' : 'defend.btn.play');
+  $('#btnCompare').textContent = t(S.compare ? 'defend.btn.single' : 'defend.btn.compare');
+  $('#btnWiring').textContent = t(S.wiring === 'shuf' ? 'defend.btn.unshuffle' : 'defend.btn.shuffle');
+  $('#btnDim').textContent = t(S.mode === '3d' ? 'defend.btn.to2d' : 'defend.btn.to3d');
+  $('#hudWiring').textContent = t(S.wiring === 'shuf' ? 'defend.wiring.shuf' : 'defend.wiring.real');
+  for (const v of allViews()) v.labels = { contact: t('defend.contact') };
+  applyCheckpoint();
+  armRun(S.A.angle);
 }
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
