@@ -7,7 +7,7 @@ plain JavaScript with no runtime dependencies.
 
 Available in English, Portuguese and Spanish.
 
-**[Open the bench →](https://flybrain.raphaelrocha.com/)**  ·  **[Survival Arena →](https://flybrain.raphaelrocha.com/defend/)**
+**[Open the bench →](https://flybrain.raphaelrocha.com/)**  ·  **[Survival Arena →](https://flybrain.raphaelrocha.com/defend/)**  ·  **[Science & FAQ →](https://flybrain.raphaelrocha.com/science/)**
 
 ---
 
@@ -16,15 +16,17 @@ Available in English, Portuguese and Spanish.
 In 2024 the FlyWire consortium published the complete wiring diagram of an adult
 *Drosophila melanogaster* brain: a real fly brain, sliced into ~7,000 sections,
 imaged with an electron microscope, traced by machine learning and corrected by
-hand. Every neuron, and every synapse between them.
+hand. This project uses a filtered package derived from that reconstruction, not
+every cell and synaptic contact in the published dataset.
 
 This page loads that wiring diagram and runs a leaky integrate-and-fire simulation
 over it. You pick a sense — sugar on the mouthparts, the smell of fermenting fruit,
-a shadow expanding overhead — and those sensory neurons start firing. Everything
-after that is the connectome doing its own thing.
+a shadow expanding overhead — and those sensory neurons receive modeled input.
+Propagation depends on the measured wiring, preprocessing, shared parameters and
+the numerical implementation; it is not a recording of the original animal.
 
 **The bench's neural circuit has no weights to fit or hand-written routing logic.**
-Its inputs are five biophysical constants and a measured wiring diagram. The
+It uses shared approximate parameters and a measured wiring diagram. The
 separate survival arena adds a trainable action policy on top of that fixed circuit.
 
 ### Things that fall out of it on their own
@@ -216,8 +218,9 @@ Something closes on her over seven glances. Each glance she can hold still, lean
 left, lean right, or leap — and she only gets one leap. She escapes if she is off
 the ground when it arrives *and* leaning away from it, because a fly that leaps
 into the thing is still hit. A linear readout over 48 descending populations is
-trained by REINFORCE; her brain does not change, because a connectome has no
-plasticity.
+trained by a REINFORCE-inspired update; this implementation holds the neural
+circuit fixed. A static anatomical map does not supply plasticity rules; this is
+not a claim that biological brains lack plasticity.
 
 The **Recorded benchmark** mode plays back a recording made by
 `tools/train.mjs`, which is the same engine and the same policy with nothing else
@@ -310,9 +313,10 @@ Kenyon-cell coding sparse. Reproduce any of it with `tools/13_sparsity.py`,
 **One neuron** holds a voltage that decays back to −52 mV on its own. Incoming
 spikes push it up or down depending on the sender's neurotransmitter. Cross
 −45 mV and it fires: dumps into everything downstream, resets, and goes
-refractory for 2.2 ms.
+refractory for a nominal 2.2 ms in non-stimulated cells (rounded to whole steps).
 
-Constants follow Shiu et al. exactly:
+Nominal parameters are adapted from Shiu et al.; this browser implementation is
+not an exact reproduction of every numerical and stimulation detail:
 
 | | |
 |---|---|
@@ -323,10 +327,12 @@ Constants follow Shiu et al. exactly:
 | refractory period | 2.2 ms |
 | synaptic delay | 1.8 ms |
 | weight per synapse | 0.275 mV |
-| stimulation | Poisson, 150 Hz |
+| stimulation | Bernoulli-per-step approximation to a 150 Hz Poisson input |
 
-Integration is the **closed-form solution** of the two-variable system, not Euler,
-so results do not drift with step size. The engine keeps an *active set*: a neuron
+Subthreshold integration uses the **closed-form solution** of the two-variable
+system, not Euler. Spike events, refractory periods and delays remain discrete;
+the full result can still depend on step size and the active-set tolerance.
+The engine keeps an *active set*: a neuron
 that is exactly at rest with no synaptic charge is skipped entirely, and only
 rejoins when something sends to it. That is what makes the whole brain tractable in
 JavaScript — activity in this model is extremely sparse.
@@ -495,8 +501,8 @@ tools/
   number of anatomical contacts.
 - Neurotransmitter assignment is *predicted* from EM imagery for most neurons, not
   measured.
-- Nothing learns. There is no memory between runs and no behaviour — activity
-  spreads, then settles.
+- The neural circuit itself does not learn. The arena's separate motor policy
+  can learn and persist locally; the bench also offers a trainable readout.
 - Connections below 5 synapses are dropped (see the table above).
 - **The visual pathway barely propagates.** Driving all 2,650 R7/R8 photoreceptors
   for 3 s leaves 106 of 77,530 optic neurons firing and *nothing at all* in the
@@ -511,12 +517,36 @@ tools/
 
 ## Credits
 
+### Science guide and reproducible checks
+
+The [science guide](https://flybrain.raphaelrocha.com/science/) distinguishes
+anatomical data, modeled dynamics and engineered behavior. It includes a searchable
+FAQ in English, Portuguese and Spanish, illustrative softmax/Wilson calculators,
+and a table derived from the published pretrained policy's evaluation JSON.
+The 153/180 escape frequency is descriptive: reused seeds and carried positions
+make these trials dependent. The zero-weight greedy baseline waits on ties; it
+is not a random-action control. No biological probability or naive confidence
+interval is inferred from this evaluation.
+
+Run software regressions with `node --experimental-default-type=module --test tests/*.test.mjs`.
+For exact symbolic checks of the subthreshold solution, softmax gradient, Wilson
+score inversion and expected points, install the optional development dependency
+`sympy==1.14.0` and run `.venv/bin/python tools/check_science_math.py`.
+The guide does not access or change saved learning or points.
+
+The `sympy` and `scientific-critical-thinking` procedural skills assisted the
+mathematical audit and interpretation review. Software/method credit (not
+neuroscience evidence): Kassis et al. (2026),
+[*Scientific Agent Skills: A Library of Procedural Knowledge for Research Agents*](https://doi.org/10.48550/arXiv.2609.00065).
+
+### Data and model
+
 - **Connectome** — Dorkenwald et al., *FlyWire: online community for whole-brain
   connectomics*, and the FlyWire consortium. Release 783. Licensed CC-BY.
 - **Cell-type annotations** — Schlegel et al.,
   [flyconnectome/flywire_annotations](https://github.com/flyconnectome/flywire_annotations).
-- **Model and constants** — Shiu et al., *A leaky integrate-and-fire computational
-  model based on the connectome of the entire adult Drosophila brain*,
+- **Model and constants** — Shiu et al.,
+  [*A Drosophila computational brain model reveals sensorimotor processing*](https://www.nature.com/articles/s41586-024-07763-9),
   [philshiu/Drosophila_brain_model](https://github.com/philshiu/Drosophila_brain_model).
 
 ## Licence
