@@ -4,3 +4,4 @@ body.play{display:block;overflow:auto;height:auto;min-height:100%;--ink3:#9aabb2
 .play .pane figcaption{display:flex;flex-direction:column;gap:3px;max-width:calc(100% - 24px);font-size:12px;pointer-events:none}.play #roundScore{font-size:11px;color:var(--ink2)}.play #roundOutcome:empty{display:none}
 @media(max-width:360px){.play .actions{gap:6px}.play .actions button{padding:8px 10px;font-size:12px}}
 .play .scene-dialog .aim-hint{display:block;font-size:11px;background:#122326de}.play .options #tidy{width:100%}.play #gestureHint{line-height:1.5}.play .pane canvas{cursor:grab}.play .pane canvas:active{cursor:grabbing}
+.play #brainMode{display:block;width:100%;max-width:100%;min-height:42px;margin:8px 0;border:1px solid var(--line);border-radius:8px;background:#101d23;color:var(--ink);padding:8px;font:inherit}.play #flightStatus,.play #flightHUD{font-variant-numeric:tabular-nums;color:#e6bd75}.play #flightHUD{font-size:11px}

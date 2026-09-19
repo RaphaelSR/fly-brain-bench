@@ -1,5 +1,5 @@
 import { WORLD_STEP, WINDUP } from '../defend/survival.js?v=patio2';
-import { PlayWorld } from './world.js';
+import { PlayWorld } from './world.js?v=flight3';
 import { advanceProps } from './props.js';
 export { WORLD_STEP };
 

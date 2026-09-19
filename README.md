@@ -547,7 +547,7 @@ Releasing outside the canvas, Escape, a canceled pointer or a second touch cance
 the gesture. Sliders and the throw button remain available, and gesture release
 can be disabled. The guide and live projectile share the same
 1/120-second integrator, gravity, bounce and courtyard colliders. The aiming
-camera stays fixed; optional cinematography starts after release. Mobile views
+camera keeps a stable orientation while following the fly; optional cinematography starts after release. Mobile views
 offer half/large scenes and a full-screen dialog with the same live canvas.
 
 The house courtyard uses locally hosted CC0 photographic diffuse, normal and
@@ -559,54 +559,60 @@ general rigid-body solver: furniture/walls stay fixed and foliage is decorative.
 Props persist between throws and during replay; Tidy resets only the scene.
 Reloading also resets props, not learned weights or completed scores.
 
-The fly's idle wander/hops are scripted. During a throw, a 57-feature, 8-action
-policy receives 49 features from the simulated 6,203-cell FlyWire circuit plus
-8 engineered present/past visual/proprioceptive features. It never receives the
-player's aim, power or future path. This hybrid is not a biologically validated
-fly, and its added geometric features prevent attributing success to the
-connectome alone. The brain inspector displays neural activity, not these extras.
+Flight v2 uses sustained, bounded lift rather than a ballistic jump. Twelve
+actions include climb, descend, hover/brake and lateral motion, with a ceiling
+of 6 scene units. Two independently trained softmax heads choose navigation
+and escape actions from 49 neural features plus 27 engineered present/past body,
+threat, obstacle, boundary and goal measurements. Random 3D exploration goals are
+artificial task objectives, not biological drives. The runtime never calls the
+navigation teacher: imitation is offline only. The camera and throw origin
+follow exploration; the projectile origin freezes at release.
 
-Learning starts enabled and can be disabled for a frozen-policy comparison.
-Online learning uses the existing REINFORCE-inspired algorithm, batches of 8 and terminal
-rewards: hit −3; survive a throw that would hit an immobile fly +3; otherwise 0,
-plus existing action costs. After a successful outcome, learning credits actions
-up to the avoided counterfactual contact plus one observation interval, instead
-of delaying positive credit to unrelated late actions. The counterfactual timing
-is an after-outcome training label, never an observation supplied to the policy.
-The immobile counterfactual determines the score's
-“dodge” versus “aim miss”; existing motion can contribute, so it is not a causal
-test of learned reactions. Replay is presentation-only. Completed throws save to
-`fly-play-save-v1`, independently of laboratory/prediction data. Backup import,
-export, pretrained reset and untrained reset are explicit; unfinished trajectories
-are not resumed. Other-tab save conflicts pause the session instead of overwriting.
-Existing saves are not replaced when new pretrained weights ship. Export a backup
-and explicitly choose Restart pretrained to install the latest package; this also
-resets the play score after confirmation. Learning explores and can cause mistakes:
-neither more episodes nor online learning guarantees monotonic improvement.
+Learning starts enabled, including navigation episodes, and can be frozen for
+both heads. Navigation rewards bounded progress toward the current goal and
+arrival; escape retains outcome-only hit −3 / avoided immobile contact +3 /
+aim miss 0, plus action costs. Neural anatomy stays fixed. These are game
+controllers, not complete biological intelligence, and engineered inputs prevent
+attributing behavior to the connectome alone.
 
-Reproduce training/report with
-`node --experimental-default-type=module tools/train-play.mjs 8000`.
-The final `ARTIFACT` line contains `web/play/pretrained.json`'s format. Evaluation
-alone can be rerun against the shipped weights by replacing `8000` with `--evaluate`.
-Training warm-starts from the original 2,400-episode fixture and includes moving
-starts and fallen props. Checkpoints are selected by fewest hits on three
-validation seeds, never by the test set. The report contains attempted episodes,
-selected checkpoint and every validation candidate.
+Select **Wider brain · experimental** (or `?brain=whole`) to run the existing
+138,639-neuron, 2,700,513-pair package instead of the 6,203-neuron escape subcircuit.
+Its 49 feature populations use full-package indices in exactly the same feature
+order. The large package is thresholded at ≥5 synapses per pair, not an unfiltered
+brain; the subcircuit uses ≥8. Fourteen cells without annotated positions are
+hidden in the large brain inspector, not assigned invented coordinates.
 
-Five fresh held-out seeds compare the selected policy, the previous published
-policy, random actions and no action, with matched starting scenes/shots: 240 throws
-per controller, including 160 initial threats and 80 non-threats. Test starts have
-no initial motion; idle gameplay is a different distribution. No action is not a
-rigidly fixed body. The UI reads counts from the published JSON. These exploratory
-results use one training seed, are not next-shot odds, do not establish statistical
-significance and do not validate connectome necessity.
+The wider profile currently transfers the small-circuit motor heads; it has not
+received independent offline whole-brain training. It was worse, not better, in
+the held-out transfer test: **39/120 hits**, versus **33/120** for the subcircuit.
+The padded old motor policy also had **33/120** hits in the new body. There were
+77 actual initial threats (rejection sampling did not find every requested threat),
+with 44 avoided by the new subcircuit controller and 39 by the wider profile.
+These are exploratory results, not statistical or biological validation. Navigation
+reduced goal distance during the short probes but only reached 2 goals in 40
+3.6-second probes; robust long-horizon planning remains unfinished.
 
-Selected checkpoint: **4,400 episodes**. It incurred **74/240 hits** versus the
-previous policy's **83/240**, and avoided **93/160 threats** versus **88/160**.
-The improvement is modest and not uniform across seeds. A first continued-training
-attempt did not improve held-out results; its unshipped report is preserved in
-`tools/fixtures/patio-first-training.json`. The revised credit assignment uses a
-fresh final test set. Read all per-seed results before generalizing.
+Saves use `fly-play-flight-v2-escape` and `fly-play-flight-v2-whole`.
+The old `fly-play-save-v1` is untouched. Explicit legacy transfer copies the
+old motor weights into the larger input/action space, resets incompatible
+optimizer state and score, and uses the current pretrained navigation head.
+Profile backups contain both heads. Other-tab conflicts pause instead of overwriting.
+
+Reproduce training: `node --experimental-default-type=module tools/train-flight.mjs 1800`.
+Use `--evaluate` for the shipped checkpoint. Training starts from the archived
+4,400-episode policy, adds 400 navigation-imitation episodes, then tests checkpoints
+during 1,800 mixed reinforcement episodes. Selection uses validation only:
+negative hits plus 0.2 × navigation-distance gain. The shipped checkpoint has
+6,000 total inherited/new episodes. The unsuccessful single-head attempt is
+preserved in `tools/fixtures/flight-joint-unshipped.json`; fresh held-out seeds
+were used after switching architecture. Earlier courtyard results are archived
+in `tools/fixtures/patio-v2.json` and reproduce at commit `ba0e4ba`.
+
+Reproduce the neural CPU benchmark:
+`node --experimental-default-type=module tools/benchmark-brain.mjs`.
+Measured local medians were 4.67 ms (subcircuit) and 17.83 ms (wider package) for a
+180-biological-ms observation. This is not a mobile frame-rate promise.
+See [the implementation and research notes](docs/flight-and-whole-brain.md).
 
 ### Data and model
 

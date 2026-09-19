@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { SurvivalWorld } from '../web/defend/survival.js';
 import { PlayWorld } from '../web/play/world.js';
-import { PlaySession, sense, packPolicy, unpackPolicy, PROTOCOL } from '../web/play/core.js';
+import { PlaySession, sense, packPolicy, unpackPolicy, PROTOCOL, EXTRA, DIMENSIONS, ACTION_COUNT } from '../web/play/core.js';
 import { makeShot, launch, traceShot, WORLD_STEP, SHOT_SECONDS } from '../web/play/physics.js';
 import { PlayStore, SAVE_KEY, validateSave } from '../web/play/storage.js';
 import { Policy } from '../web/defend/policy.js';
@@ -15,7 +15,7 @@ const artifact = JSON.parse(readFileSync(new URL('../web/play/pretrained.json', 
 const fakeRig = (seed = 1) => ({ D: 49, rng: mulberry(seed), eng: { reset() {} },
   glance: () => ({ x: new Float32Array(49), gf: 0, drive: { l: 0, r: 0 }, urgency: 0 }),
   snapshot: () => ({ i: [], v: [] }) });
-const fresh = () => ({ protocol: PROTOCOL, policy: structuredClone(artifact.policy), stats: { throws: 0, hits: 0, dodges: 0, misses: 0 } });
+const fresh = () => ({ protocol: PROTOCOL, brain: 'escape', policy: structuredClone(artifact.policy), navigationPolicy: structuredClone(artifact.navigationPolicy), stats: { throws: 0, hits: 0, dodges: 0, misses: 0 } });
 const parameters = { aim: { x: 0, z: 0 }, power: 65, elevation: -12 };
 const complete = s => { while (s.phase === 'flight') s.step(); };
 
@@ -41,16 +41,17 @@ test('observations cannot read aim, power, future trajectory or counterfactual r
   const world = new SurvivalWorld({ expanded: true }), baseline = sense(world, 0.1);
   Object.assign(world, { aim: { x: 100, z: 50 }, power: 99, trajectory: ['future'], control: true, pvx: 999, pvz: -999 });
   assert.deepEqual(sense(world, 0.1), baseline);
-  assert.equal(baseline.extra.length, 8); assert.ok(baseline.extra.every(Number.isFinite));
+  assert.equal(baseline.extra.length, EXTRA); assert.ok(baseline.extra.every(Number.isFinite));
   assert.equal(sense(world, null).extra[3], 0);
 });
 
 test('idle movement is continuous, throwing is one-at-a-time, frozen weights never change', () => {
-  const s = new PlaySession(fakeRig()); s.load(fresh()); const before = packPolicy(s.policy);
+  const s = new PlaySession(fakeRig()); s.load(fresh()); s.learning = false; const before = s.save();
   for (let i = 0; i < 480; i++) s.step();
-  assert.ok(Math.hypot(s.world.x, s.world.z) > 0.01); assert.equal(s.stats.throws, 0); assert.equal(s.world.hit, false);
+  assert.ok(s.signal.id > 1); assert.equal(s.stats.throws, 0); assert.equal(s.world.hit, false);
   s.throw(parameters, { learning: false }); assert.throws(() => s.throw(parameters), /One slipper/);
-  complete(s); assert.equal(s.stats.throws, 1); assert.deepEqual(packPolicy(s.policy), before);
+  complete(s); assert.equal(s.stats.throws, 1); assert.deepEqual(packPolicy(s.policy), before.policy);
+  assert.deepEqual(packPolicy(s.navigationPolicy), before.navigationPolicy);
   for (let i = 0; i < 156; i++) s.step(); assert.equal(s.phase, 'aim');
   assert.equal(s.stats.throws, 1); assert.equal(s.world.projectileActive, false);
 });
@@ -58,9 +59,10 @@ test('idle movement is continuous, throwing is one-at-a-time, frozen weights nev
 test('immobile control distinguishes misses, hits and movement-based dodges with terminal rewards', () => {
   const hit = new PlaySession(fakeRig()); hit.throw(parameters, { mode: 'still' }); complete(hit);
   assert.equal(hit.control, true); assert.equal(hit.result.kind, 'hit'); assert.equal(hit.result.reward, -3);
-  const dodge = new PlaySession(fakeRig()); dodge.world.act(1); dodge.world.act(3);
+  const dodge = new PlaySession(fakeRig());
+  dodge.world.act = () => { PlayWorld.prototype.act.call(dodge.world, 8); return PlayWorld.prototype.act.call(dodge.world, 10); };
   dodge.throw(parameters, { mode: 'still' }); complete(dodge);
-  // A pre-existing motion can explain a dodge; this score is not a causal policy test.
+  // A controlled climb validates scoring, not the learned policy's intelligence.
   assert.equal(dodge.result.kind, 'dodge'); assert.equal(dodge.result.reward, 3);
   const miss = new PlaySession(fakeRig()); miss.throw({ ...parameters, aim: { x: -12, z: 12 }, elevation: 40 }, { mode: 'still' }); complete(miss);
   assert.equal(miss.control, false); assert.equal(miss.result.kind, 'miss'); assert.equal(miss.result.reward, 0);
@@ -84,7 +86,7 @@ test('malformed checkpoints are rejected before mutating state', () => {
     const invalid = structuredClone(before); mutate(invalid);
     assert.throws(() => s.load(invalid)); assert.throws(() => validateSave(invalid)); assert.deepEqual(s.save(), before);
   }
-  const policy = new Policy(57, 8); unpackPolicy(policy, before.policy); assert.deepEqual(packPolicy(policy), before.policy);
+  const policy = new Policy(DIMENSIONS, ACTION_COUNT); unpackPolicy(policy, before.policy); assert.deepEqual(packPolicy(policy), before.policy);
 });
 
 test('isolated storage handles roundtrip, conflicts, quota and explicitly approved replacement', async () => {
@@ -96,19 +98,19 @@ test('isolated storage handles roundtrip, conflicts, quota and explicitly approv
   const restored = new PlayStore(storage); assert.deepEqual(restored.load(), fresh());
   const quota = new PlayStore({ ...storage, setItem() { throw new Error('Quota'); } }); quota.load();
   await assert.rejects(quota.save(fresh()), /Quota/); assert.equal(quota.revision, 1);
-  data.set(SAVE_KEY, '{corrupt'); const corrupt = new PlayStore(storage);
+  data.set(SAVE_KEY + '-escape', '{corrupt'); const corrupt = new PlayStore(storage);
   assert.throws(() => corrupt.load()); await assert.rejects(corrupt.save(fresh()));
   await corrupt.save(fresh(), { replace: true }); assert.deepEqual(corrupt.load(), fresh());
   assert.equal(data.get('laboratory'), 'do not change'); assert.equal(data.get('predictions'), 'keep');
 });
 
 test('published weights, held-out report and all localized UI copy agree', () => {
-  validateSave(fresh()); assert.equal(artifact.policy.episodes, artifact.training.episodes);
-  assert.equal(artifact.protocol, PROTOCOL); assert.equal(artifact.policy.W.length, 57 * 8);
-  for (const mode of ['policy', 'previous', 'random', 'hold']) {
+  validateSave(fresh()); assert.equal(artifact.policy.episodes + artifact.navigationPolicy.episodes, artifact.training.episodes);
+  assert.equal(artifact.protocol, PROTOCOL); assert.equal(artifact.policy.W.length, DIMENSIONS * ACTION_COUNT);
+  for (const mode of ['policy', 'transfer', 'random', 'hold']) {
     const rows = artifact.evaluation.rows.filter(r => r.mode === mode);
-    assert.equal(rows.length, 5); assert.equal(rows.reduce((n, r) => n + r.throws, 0), 240);
-    assert.equal(rows.reduce((n, r) => n + r.threats, 0), 160);
+    assert.equal(rows.length, 5); assert.equal(rows.reduce((n, r) => n + r.throws, 0), 120);
+    assert.equal(rows.reduce((n, r) => n + r.threats, 0), 77);
     assert.ok(rows.every(r => r.dodges <= r.threats && r.hits <= r.throws));
   }
   const html = readFileSync(new URL('../web/play/index.html', import.meta.url), 'utf8');
@@ -118,7 +120,8 @@ test('published weights, held-out report and all localized UI copy agree', () =>
     for (const key of keys) assert.ok(copy[key]?.length, key);
     assert.ok(!formatReport(copy.evaluationText, artifact, 'en').includes('{'));
   }
-  const values = reportValues(artifact); assert.equal(values.total, 240); assert.equal(values.threats, 160);
+  const values = reportValues(artifact); assert.equal(values.total, 120); assert.equal(values.threats, 77);
+  assert.equal(reportValues(artifact, 'whole').total, 120);
   assert.ok(/id="learning"[^>]*checked/.test(html)); assert.ok(/id="gestures"[^>]*checked/.test(html));
 });
 
@@ -137,6 +140,6 @@ test('real FlyWire rig yields actual neural snapshots and valid actions in a hum
   s.throw(parameters); s.step();
   assert.equal(s.signal.snap.i.length, s.signal.snap.v.length);
   assert.ok(s.signal.snap.i.length > 0); assert.ok(s.signal.snap.i.every(i => i >= 0 && i < 6203));
-  assert.ok(s.signal.action >= 0 && s.signal.action < 8);
+  assert.ok(s.signal.action >= 0 && s.signal.action < ACTION_COUNT);
   complete(s); assert.equal(s.stats.throws, 1); validateSave(s.save());
 });
