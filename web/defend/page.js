@@ -100,8 +100,7 @@ function spawn() {
   // one threat at a time, from a random side, so direction is what she must read
   const fromLeft = Math.random() < 0.5;
   const a = (fromLeft ? -1 : 1) * (0.35 + Math.random() * 0.9);
-  // ~6 s of approach, long enough for a dozen glances at default speed
-  S.threats.push(new Threat(a, 0.16 + Math.random() * 0.06));
+  S.threats.push(new Threat(a));
 }
 
 function decide() {
@@ -139,34 +138,44 @@ function endEpisode(survived) {
 function loop(now) {
   const dt = Math.min((now - S.last) / 1000, 0.05);
   S.last = now;
-  S.brain.tick(now);
 
-  /* The world runs on wall time; her looking runs on hers.
+  /* The readout and the neuron cloud each sweep 138,639 neurons, and at 60 Hz
+     that starved the worker badly enough to cut episodes to one per 45 s. Neither
+     needs the frame rate: rates are an average over a window, and the cloud is a
+     decaying glow. Both run at 15 Hz now and the engine gets its CPU back. */
+  const slow = now - (S._slow || 0) > 66;
+  if (slow) { S._slow = now; S.brain.tick(now); }
 
-     Two failed arrangements before this one. Scaling wall time let the threat
-     close faster than the brain could glance, so 67 episodes produced a single
-     policy update. Driving the world by biological time instead stalled it
-     completely: the engine manages 91-500 ms of biological time per wall second,
-     so a threat took half a minute to arrive. What works is leaving the approach
-     on a watchable clock and letting the glance rate follow the brain — a slow
-     brain simply gets fewer looks before impact, which is honest. The speed
-     control raises engine throughput, so faster means more looks, not a faster
-     threat. */
-  const step = dt;
+  /* The approach is paced by her looking, not by a clock.
 
-  if (S.glance.update(S.threats, S.heading)) decide();
+     Three arrangements failed first. Scaling wall time let the threat close
+     faster than she could glance, so 67 episodes gave a single policy update.
+     Driving the world by biological time stalled it — the engine manages a few
+     hundred biological ms per wall second, so a threat took half a minute.
+     Leaving the world on wall time gave one episode per five seconds, which is
+     too slow to watch a hundred of them.
+
+     So the threat advances a fixed share of the way on every glance. Every
+     episode gets exactly GLANCES_PER_APPROACH decisions whatever the speed, and
+     the speed control just makes glances come faster. Between glances the motion
+     is interpolated so it still reads as an approach rather than a series of
+     jumps. */
+  const glanced = S.glance.update(S.threats, S.heading);
+  if (glanced) {
+    decide();
+    for (const t of S.threats) if (!t.dead) t.advance();
+  }
   S.loom = S.glance.drive;
+  S.airborne = Math.max(0, S.airborne - dt * 1.9);
 
-  S.airborne = Math.max(0, S.airborne - step * 1.4);
   for (const t of S.threats) {
     if (t.dead) continue;
-    t.step(step);
-    if (t.r < 0.14) {
-      // contact, unless she is off the ground or has turned it out of her path
+    t.interpolate(dt);
+    if (t.arrived) {
       const facing = Math.abs(t.sideOf(S.heading));
-      const dodged = S.airborne > 0.25 || facing > 0.72;
+      const dodged = S.airborne > 0.2 || facing > 0.7;
       t.dead = true; t.hit = !dodged;
-      if (!dodged) S.hitsThisEp++;
+      if (!dodged) { S.hitsThisEp++; S.arena.flash = 1; }
       endEpisode(dodged);
       return schedule();
     }
@@ -175,14 +184,16 @@ function loop(now) {
 
   if (!document.hidden) S.arena.draw({ threats: S.threats, heading: S.heading, airborne: S.airborne }, dt);
   if (S.brainView && !document.hidden) {
-    const act = S.brainView.act, hz = S.brain.hz;
-    const decay = Math.pow(0.04, dt);
-    for (let i = 0; i < act.length; i++) {
-      const v = hz[i] > 1 ? Math.min(1, hz[i] / 120) : 0;
-      const a = act[i] * decay;
-      act[i] = v > a ? v : a;
+    if (slow) {
+      const act = S.brainView.act, hz = S.brain.hz;
+      const decay = Math.pow(0.04, 0.066);
+      for (let i = 0; i < act.length; i++) {
+        const v = hz[i] > 1 ? Math.min(1, hz[i] / 120) : 0;
+        const a = act[i] * decay;
+        act[i] = v > a ? v : a;
+      }
+      S.brainView.uploadAct();
     }
-    S.brainView.uploadAct();
     S.brainView.draw(dt);
   }
   if (now - (S._paint || 0) > 150) { paint(now); S._paint = now; }
@@ -209,9 +220,7 @@ function paint(now) {
   const last = S.ep.slice(-20);
   const rate = last.length ? Math.round(100 * last.reduce((a, b) => a + b, 0) / last.length) : 0;
   $('#mSurv').textContent = `${rate}%`;
-  let firing = 0;
-  for (let i = 0; i < S.brain.hz.length; i++) if (S.brain.hz[i] > 1) firing++;
-  $('#mActive').textContent = `${firing.toLocaleString('en-US')} firing`;
+  $('#mActive').textContent = `${S.brain.nActive.toLocaleString('en-US')} settling`;
   const v = $('#verdict');
   if (now - S.verdictT < 1100) {
     v.textContent = S.verdict;

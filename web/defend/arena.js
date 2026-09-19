@@ -7,20 +7,31 @@
 
 export const ARENA_R = 1.0;          // normalised; the canvas scales it
 
+export const GLANCES_PER_APPROACH = 7;
+
 export class Threat {
-  constructor(angle, speed, size = 0.09) {
-    this.a = angle;                  // where it comes from, radians
-    this.r = 1.25;                   // starts outside the arena
-    this.speed = speed;
-    this.size = size;
+  constructor(angle) {
+    this.a = angle;
+    this.step_ = 0;                  // how many glances have passed
+    this.r = 1.15;                   // drawn radius, eased toward the target
+    this.target = 1.15;
+    this.size = 0.09;
     this.dead = false;
     this.hit = false;
   }
-  step(dt) { this.r -= this.speed * dt; }
+  /* one glance closer */
+  advance() {
+    this.step_++;
+    const u = this.step_ / GLANCES_PER_APPROACH;
+    this.target = 1.15 - u * 1.03;
+  }
+  /* smooth the jump between glances so it reads as motion */
+  interpolate(dt) {
+    this.r += (this.target - this.r) * Math.min(1, dt * 7);
+  }
+  get arrived() { return this.step_ >= GLANCES_PER_APPROACH; }
   get pos() { return [Math.sin(this.a) * this.r, Math.cos(this.a) * this.r]; }
-  /* how large it looms, 0 far to 1 upon her — this is what drives the detectors */
-  get loom() { return Math.max(0, Math.min(1, 1 - (this.r - 0.12) / 1.0)); }
-  /* which side of her it is on, -1 left to +1 right, given her heading */
+  get loom() { return Math.max(0, Math.min(1, 1 - (this.r - 0.12) / 1.03)); }
   sideOf(heading) {
     let d = ((this.a - heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
     return Math.max(-1, Math.min(1, d / (Math.PI / 2)));

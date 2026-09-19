@@ -23,6 +23,7 @@ let v, g, rfc, inActive, isStim, spikeCount;
 let active, nActive = 0;
 let ring, ringLen;
 let stimList = new Int32Array(0);
+let stimRate = null;   // per-neuron Poisson rate in Hz, or null for the default
 let step = 0, running = false, speed = 8;
 let outIdx, outCount = 0;
 let totalSpikes = 0;
@@ -63,7 +64,8 @@ function advance() {
 
   // 2. Poisson drive on the stimulated set
   for (let k = 0; k < stimList.length; k++) {
-    if (Math.random() < P_POI) { const i = stimList[k]; v[i] += W_POI; touch(i); }
+    const p = stimRate ? stimRate[k] * (DT / 1000) : P_POI;
+    if (p > 0 && Math.random() < p) { const i = stimList[k]; v[i] += W_POI; touch(i); }
   }
 
   // 3. integrate + threshold, active set only
@@ -112,11 +114,17 @@ self.onmessage = (ev) => {
 
   if (m.cmd === 'stim') {
     isStim.fill(0);
-    stimList = new Int32Array(m.idx);
-    for (let k = 0; k < stimList.length; k++) isStim[stimList[k]] = 1;
-    reset();
+    stimList = new Int32Array(m.idx || []);
+    stimRate = m.rates ? new Float32Array(m.rates) : null;
+    for (let k = 0; k < stimList.length; k++) { isStim[stimList[k]] = 1; touch(stimList[k]); }
+    // The bench wants a clean slate per stimulus, so reset stays the default. A
+    // scenario that samples the same brain over and over must pass reset:false —
+    // resetting rewinds `step`, and anything pacing itself on the returned clock
+    // then waits for a time that has already gone past.
+    if (m.reset !== false) reset();
     return;
   }
+
   if (m.cmd === 'run') {
     const was = running; running = m.on;
     if (running && !was) tick();   // never start a second tick chain

@@ -8,6 +8,13 @@
    Front versus back within one side does not separate (0.95–0.97), so this scenario
    asks her only which side, never how far round. tools/25 and tools/26 measure it.
 
+   The circuit here is the pathway only — neurons reachable from LPLC2 in two
+   synapses that also reach a descending neuron, at 8 or more contacts: 6,203
+   cells and 108,237 edges against the whole brain's 138,639 and 2.7 million. The
+   full brain managed 10 ms of biological time per wall second once the main
+   thread was also drawing it, which put an episode at 35 s and made the learning
+   arc unwatchable.
+
    She is glanced, not stared at: a 30 ms pulse read 60 ms later against the pattern
    from just before it. Sustained drive saturates the network and the readout stops
    carrying anything — the same failure that killed the odour-maze attempt. */
@@ -24,18 +31,18 @@ export class Defender {
   constructor() { this.ready = false; this.t = 0; this.nActive = 0; }
 
   async load(onProgress) {
-    const meta = JSON.parse(new TextDecoder().decode(await fetchGz('../data/meta.json.gz')));
+    const meta = JSON.parse(new TextDecoder().decode(await fetchGz('data/meta.json.gz')));
     this.meta = meta;
     const N = meta.n_neurons, E = meta.n_edges;
     onProgress?.('annotations', 0.12);
-    this.labels = decodeLabels(await fetchGz('../data/labels.bin.gz'), N);
-    const sign = await fetchGz('../data/sign.bin.gz');
-    this.channels = await (await fetch('../data/channels.json')).json();
+    this.labels = decodeLabels(await fetchGz('data/labels.bin.gz'), N);
+    const sign = await fetchGz('data/sign.bin.gz');
+    this.channels = await (await fetch('data/channels.json')).json();
     onProgress?.('positions', 0.18);
-    const posRaw = await fetchGz('../data/pos.u16.bin.gz');
+    const posRaw = await fetchGz('data/pos.u16.bin.gz');
     this.geom = decodePositions(posRaw, N, meta.bbox_lo, meta.span);
     onProgress?.('connections', 0.24);
-    const raw = await fetchGz('../data/conn.bin.gz', f => onProgress?.('connections', 0.24 + f * 0.6));
+    const raw = await fetchGz('data/conn.bin.gz', f => onProgress?.('connections', 0.24 + f * 0.6));
     onProgress?.('rebuild', 0.88);
     await new Promise(r => setTimeout(r, 0));
     const conn = decodeConnectome(raw, N, E, sign);
