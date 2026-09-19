@@ -15,7 +15,7 @@ test('actual play worker advances live, locks throws, saves one outcome and rest
       return messages.at(-1);
     };
     const artifact = JSON.parse(readFileSync(new URL('../web/play/pretrained.json', import.meta.url)));
-    const saved = { protocol: PROTOCOL, policy: artifact.policy, stats: { throws: 0, hits: 0, dodges: 0, misses: 0 } };
+    const saved = { protocol: PROTOCOL, brain: 'escape', policy: artifact.policy, navigationPolicy: artifact.navigationPolicy, stats: { throws: 0, hits: 0, dodges: 0, misses: 0 } };
     const initial = await request('init', { seed: 77, saved }); validateSave(initial.save);
     const moved = await request('step', { ticks: 12 }); assert.notDeepEqual(moved.state.frame, initial.state.frame);
     const nudged = await request('nudge', { object: 'fern', dx: 1, dz: 0 });
@@ -36,11 +36,24 @@ test('actual play worker advances live, locks throws, saves one outcome and rest
       result = await request('step', { ticks: 12 }); assert.equal(result.error, undefined);
       if (result.save) { outcomes++; validateSave(result.save); }
     }
-    assert.equal(outcomes, 1); assert.equal(result.state.stats.throws, 1); assert.equal(result.state.trained, artifact.policy.episodes + 1);
+    assert.equal(outcomes, 1); assert.equal(result.state.stats.throws, 1); assert.equal(result.state.trained, artifact.training.episodes + 1);
     for (let i = 0; i < 13; i++) result = await request('step', { ticks: 12 });
     assert.equal(result.state.phase, 'aim');
     assert.ok((await request('restore', { seed: 2, saved: {} })).error);
     assert.equal((await request('step', { ticks: 1 })).state.stats.throws, 1);
     const restored = await request('restore', { seed: 2, saved }); assert.deepEqual(restored.save, saved);
+    await request('configure', { learning: false });
+    for (let i = 0; i < 48; i++) {
+      const frozen = await request('step', { ticks: 12 });
+      assert.equal(frozen.state.trained, restored.state.trained);
+      assert.equal(frozen.save, null);
+    }
+    const wider = await request('init', { seed: 77, brain: 'whole', saved: { ...saved, brain: 'whole' } });
+    assert.equal(wider.error, undefined); validateSave(wider.save);
+    assert.equal(wider.state.brain, 'whole');
+    assert.ok((await request('restore', { seed: 77, saved })).error);
+    const widerStep = await request('step', { ticks: 12 });
+    assert.equal(widerStep.error, undefined);
+    assert.equal(widerStep.state.brain, 'whole');
   } finally { globalThis.fetch = oldFetch; globalThis.self = oldSelf; }
 });

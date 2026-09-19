@@ -8,24 +8,26 @@ import { BrainInspector } from '../defend/brain-inspector.js?v=play1';
 import { fetchGz, decodeLabels, decodePositions, decodeConnectome } from '../js/data.js';
 import { detectLocale, setLocale, getLocale, applyDom } from '../js/i18n.js';
 import { sampleEpisode } from '../defend/live.js?v=patio2';
-import { PlayStore, validateSave } from './storage.js?v=patio2';
+import { PlayStore, validateSave, LEGACY_KEY, transferLegacy } from './storage.js?v=flight3';
 import { Policy } from '../defend/policy.js';
-import { PROTOCOL, packPolicy } from './core.js?v=patio2';
-import { makeShot, traceShot } from './physics.js?v=patio2';
-import { COPY } from './copy.js?v=patio2';
-import { formatReport } from './report.js';
+import { PROTOCOL, packPolicy, DIMENSIONS, ACTION_COUNT } from './core.js?v=flight3';
+import { makeShot, traceShot } from './physics.js?v=flight3';
+import { COPY } from './copy.js?v=flight3';
+import { formatReport } from './report.js?v=flight3';
 
 const $ = id => document.getElementById(id), c = key => COPY[getLocale()][key];
 const label = (id, value) => { const el = $(id), text = String(value); if (el.textContent !== text) el.textContent = text; };
 const seed = () => crypto.getRandomValues(new Uint32Array(1))[0];
 setLocale(new URLSearchParams(location.search).get('lang') || detectLocale());
+const brainMode = new URLSearchParams(location.search).get('brain') === 'whole' ? 'whole' : 'escape';
+const dataPath = brainMode === 'whole' ? '../data/' : '../defend/data/';
 let state, previous, received = 0, running = false, entered = false, busy = false, throwing = false, restoring = false;
 let renderer, brain, inspector, store, saved, pretrained, hasSaved = false, saveFailed = false;
 let trace, ring, lastPhase, lastSignal = -1, recording = [], lastReplay = null, replay = null;
 let propSignature = '', dragging = false;
 const gesture = new ThrowGesture();
 let saveQueue = Promise.resolve(), sequence = 0, lastTime = 0, lastStep = 0;
-const worker = new Worker(new URL('./play.worker.js?v=patio2', import.meta.url), { type: 'module' });
+const worker = new Worker(new URL('./play.worker.js?v=flight3', import.meta.url), { type: 'module' });
 const requests = new Map();
 worker.onmessage = ({ data }) => {
   const pending = requests.get(data.id);
@@ -39,7 +41,7 @@ function request(type, options = {}) {
     const id = ++sequence; requests.set(id, { resolve, reject }); worker.postMessage({ id, type, ...options });
   });
 }
-const fresh = policy => ({ protocol: PROTOCOL, policy: structuredClone(policy), stats: { throws: 0, hits: 0, dodges: 0, misses: 0 } });
+const fresh = (policy, navigationPolicy = pretrained.navigationPolicy) => ({ protocol: PROTOCOL, brain: brainMode, policy: structuredClone(policy), navigationPolicy: structuredClone(navigationPolicy), stats: { throws: 0, hits: 0, dodges: 0, misses: 0 } });
 function fail(saving = false) {
   running = false; saveFailed ||= saving;
   $('error').hidden = false; $('error').textContent = c(saving ? 'saveError' : 'error'); paint();
@@ -68,7 +70,7 @@ function accept(response, initial = false) {
     if (state.phase === 'aim') updateAim();
     lastPhase = state.phase;
   }
-  const signature = JSON.stringify(state.frame.props?.map(p => [p.x.toFixed(3), p.z.toFixed(3), p.angle.toFixed(3)]));
+  const signature = JSON.stringify([state.origin, state.frame.props?.map(p => [p.x.toFixed(3), p.z.toFixed(3), p.angle.toFixed(3)])]);
   if (state.phase === 'aim' && signature !== propSignature) { propSignature = signature; updateAim(); }
   if (brain && state.signal?.id !== lastSignal && state.signal?.snap) {
     lastSignal = state.signal.id;
@@ -103,7 +105,7 @@ function paint() {
   if (!state) return;
   const aiming = state.phase === 'aim' && !replay && !throwing && !restoring;
   $('btnThrow').disabled = !entered || !running || !aiming;
-  for (const id of ['direction', 'power', 'elevation', 'learning', 'reset', 'blank', 'import', 'tidy', 'gestures']) $(id).disabled = !aiming;
+  for (const id of ['direction', 'power', 'elevation', 'learning', 'reset', 'blank', 'import', 'tidy', 'gestures', 'brainMode', 'legacy']) $(id).disabled = !aiming;
   $('btnReplay').disabled = !lastReplay || !aiming;
   const playing = replay ? !replay.paused : running;
   label('btnPlay', c(playing ? 'pause' : 'resume'));
@@ -115,6 +117,10 @@ function paint() {
   label('gestureHint', dragging ? c('release') + ' · ' + $('power').value + '%' : c($('gestures').checked ? 'hint' : 'buttonHint'));
   for (const id of ['hits', 'dodges', 'misses']) label(id, state.stats[id]);
   label('trained', state.trained.toLocaleString(getLocale()));
+  label('flightStatus', `${c('altitude')}: ${state.frame.height.toFixed(1)} / 6 · ${c('decision')}: ${c('actionNames')[state.signal?.action || 0]}`);
+  label('flightHUD', `${c('altitude')}: ${state.frame.height.toFixed(1)} / 6 · ${c('actionNames')[state.signal?.action || 0]}`);
+  $('flightHUD').hidden = Boolean(replay);
+  label('goalStatus', `${c('goals')}: ${state.goals} · ${c('targetHeight')}: ${state.goal?.y.toFixed(1) || '0'}`);
   label('saveStatus', c(saveFailed ? 'saveError' : hasSaved ? 'saved' : 'ephemeral'));
   label('outcome', c(state.result?.kind || 'waiting'));
   label('reward', state.result ? `${c('reward')}: ${state.result.reward > 0 ? '+' : ''}${state.result.reward} · ${c(state.result.learned ? 'learned' : 'frozen')}` : '');
@@ -124,11 +130,14 @@ function paint() {
 function translate() {
   applyDom();
   for (const el of document.querySelectorAll('[data-copy]')) el.textContent = el.dataset.copy === 'evaluationText'
-    ? pretrained ? formatReport(c('evaluationText'), pretrained, getLocale()) : c('loading') : c(el.dataset.copy);
+    ? pretrained ? formatReport(c('evaluationText'), pretrained, getLocale(), brainMode) : c('loading') : c(el.dataset.copy);
+  $('brainMode').value = brainMode; label('brainModeNote', c(brainMode === 'whole' ? 'wholeNote' : 'escapeNote'));
+  $('brain').setAttribute('aria-label', c('brainTitle'));
   $('lang').value = getLocale(); document.title = `Fly Brain · ${c('title')}`;
   $('labLink').href = `../defend/?lang=${getLocale()}`;
   $('loading').textContent = c($('enter').disabled ? 'loading' : 'ready');
   inspector?.relabel(); updateAim(); paint();
+  document.querySelector('[data-i18n="brain.provenance"]').textContent = c('brainProvenance');
 }
 async function throwSlipper() {
   if (!running || state?.phase !== 'aim' || replay || throwing || restoring) return;
@@ -142,6 +151,7 @@ async function replace(data) {
   try {
     await saveQueue;
     const response = await request('restore', { saved: validateSave(data), seed: seed() });
+    await request('configure', { learning: $('learning').checked });
     accept(response, true); await persist(response.save, true);
     lastReplay = null; lastSignal = -1; brain.act.fill(0); brain.uploadAct(); $('mActive').textContent = '';
     running = wasRunning && !saveFailed;
@@ -176,7 +186,7 @@ function animate(now) {
       episode = { launch: state.origin, angle: shot.angle, approach: 1.8, contactAt: null, frames: [] };
     }
     const framing = aiming || !$('cinematic').checked ? {
-      target: new THREE.Vector3(state.home.x + 0.5, 0.65, state.home.z + 0.8), distance: 15.8, pitch: 0.5, yaw: 0.38,
+      target: new THREE.Vector3(state.home.x + 0.5, 0.65 + frame.height * 0.5, state.home.z + 0.8), distance: 15.8, pitch: 0.5, yaw: 0.38,
     } : null;
     const playing = replay ? !replay.paused : running;
     renderer.drawLive(frame, episode, playing ? dt : 0, $('cinematic').checked, framing);
@@ -195,6 +205,7 @@ function bindAim() {
   };
   const aim = e => {
     cast(e);
+    plane.constant = -state.frame.height;
     if (!ray.ray.intersectPlane(plane, point)) return;
     const bearing = Math.atan2(point.x - state.origin.x, point.z - state.origin.z);
     const base = Math.atan2(state.home.x - state.origin.x, state.home.z - state.origin.z);
@@ -243,6 +254,12 @@ $('lang').addEventListener('change', () => {
   translate();
 });
 for (const id of ['direction', 'power', 'elevation']) $(id).addEventListener('input', updateAim);
+$('brainMode').addEventListener('change', () => {
+  const url = new URL(location.href); url.searchParams.set('brain', $('brainMode').value); location.href = url.href;
+});
+$('learning').addEventListener('change', async () => {
+  try { accept(await request('configure', { learning: $('learning').checked })); } catch { fail(); }
+});
 $('gestures').addEventListener('change', paint);
 $('tidy').addEventListener('click', async () => {
   if (state?.phase !== 'aim' || throwing || restoring || replay) return;
@@ -258,12 +275,24 @@ $('btnReplay').addEventListener('click', () => {
 $('intense').addEventListener('change', () => { renderer.intense = $('intense').checked; });
 $('export').addEventListener('click', exportBackup);
 $('reset').addEventListener('click', () => { if (confirm(c('confirmReset'))) replace(fresh(pretrained.policy)); });
-$('blank').addEventListener('click', () => { if (confirm(c('confirmReset'))) replace(fresh(packPolicy(new Policy(57, 8)))); });
+$('blank').addEventListener('click', () => { if (confirm(c('confirmReset'))) { const blank = packPolicy(new Policy(DIMENSIONS, ACTION_COUNT)); replace(fresh(blank, blank)); } });
+$('legacy').addEventListener('click', async () => {
+  try {
+    const raw = localStorage.getItem(LEGACY_KEY);
+    if (!raw) { alert(c('noLegacy')); return; }
+    const migrated = transferLegacy(JSON.parse(raw).data, brainMode);
+    migrated.navigationPolicy = structuredClone(pretrained.navigationPolicy);
+    if (confirm(c('confirmLegacy'))) await replace(migrated);
+  } catch { fail(); }
+});
 $('import').addEventListener('change', async () => {
   try {
     const file = $('import').files[0]; if (!file) return;
     if (file.size > 200000) throw new Error('Oversized backup');
-    const data = validateSave(JSON.parse(await file.text()));
+    const imported = JSON.parse(await file.text());
+    const data = imported.protocol === 'fly-play-hybrid-v1' ? transferLegacy(imported, brainMode) : validateSave(imported);
+    if (imported.protocol === 'fly-play-hybrid-v1') data.navigationPolicy = structuredClone(pretrained.navigationPolicy);
+    if (data.brain !== brainMode) throw new Error('Different brain profile');
     if (confirm(c('confirmImport'))) await replace(data);
   } catch { fail(); } finally { $('import').value = ''; }
 });
@@ -278,14 +307,19 @@ try {
   ring = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.22, 32), new THREE.MeshBasicMaterial({ color: 0xeb9a24, side: THREE.DoubleSide, transparent: true, depthTest: false, depthWrite: false, fog: false, toneMapped: false }));
   ring.rotation.x = -Math.PI / 2; ring.renderOrder = 11; renderer.view.scene.add(ring); bindAim();
   let local = null;
-  try { store = new PlayStore(localStorage); local = store.load(); hasSaved = !!local; } catch { saveFailed = true; }
-  const response = await fetch('pretrained.json?v=patio2'); if (!response.ok) throw new Error('Missing pretrained policy');
+  try { store = new PlayStore(localStorage, brainMode); local = store.load(); hasSaved = !!local; } catch { saveFailed = true; }
+  const response = await fetch('pretrained.json?v=flight3'); if (!response.ok) throw new Error('Missing pretrained policy');
   pretrained = await response.json(); validateSave(fresh(pretrained.policy));
-  accept(await request('init', { seed: seed(), saved: local || fresh(pretrained.policy) }), true);
-  const [m, l, p, b, s] = await Promise.all(['meta.json.gz', 'labels.bin.gz', 'pos.u16.bin.gz', 'conn.bin.gz', 'sign.bin.gz'].map(name => fetchGz('../defend/data/' + name)));
+  accept(await request('init', { seed: seed(), brain: brainMode, saved: local || fresh(pretrained.policy) }), true);
+  const [m, l, p, b, s] = await Promise.all(['meta.json.gz', 'labels.bin.gz', 'pos.u16.bin.gz', 'conn.bin.gz', 'sign.bin.gz'].map(name => fetchGz(dataPath + name)));
   const meta = JSON.parse(new TextDecoder().decode(m)), n = meta.n_neurons;
   const labels = decodeLabels(l, n), geom = decodePositions(p, n, meta.bbox_lo, meta.span);
   brain = new BrainView($('brain'), geom.pos, labels.nt, geom.radius);
+  if (brainMode === 'whole') {
+    const response = await fetch(dataPath + 'position-provenance.json');
+    if (!response.ok) throw new Error('Missing position provenance');
+    brain.hideMissingPositions((await response.json()).missing);
+  }
   const colors = { acetylcholine: [0.96, 0.68, 0.26], gaba: [0.28, 0.58, 0.88], glutamate: [0.64, 0.45, 0.87], dopamine: [0.35, 0.78, 0.55], serotonin: [0.90, 0.45, 0.65], octopamine: [0.30, 0.78, 0.80], unknown: [0.45, 0.52, 0.55] };
   brain.setNTColors(meta.dicts.top_nt.map(name => colors[name] || colors.unknown));
   inspector = new BrainInspector(brain, meta, labels, decodeConnectome(b, n, meta.n_edges, s));
