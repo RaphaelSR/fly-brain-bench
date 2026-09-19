@@ -63,6 +63,7 @@ export class Arena3D {
     this.view.rig.reset();
     this.hand.visible = false;
     this.view.cinematic = null;
+    this.cameraCut = true;
   }
 
   drawLive(frame, episode, dt, cinematic = true) {
@@ -95,9 +96,11 @@ export class Arena3D {
       episode.launch.y + 0.3 + withdraw, episode.launch.z + Math.cos(episode.angle) * withdraw);
     this.hand.rotation.set(-Math.min(0.6, frame.t) * 0.5, episode.angle, -0.12);
     const gap = Math.hypot(p.x - frame.x, p.z - frame.z);
-    const mix = frame.t < episode.approach + 0.55 ? 0.18 : 0;
+    const portrait = this.c.clientWidth < this.c.clientHeight;
+    const mix = frame.t < episode.approach + 0.55 ? (portrait ? 0.08 : 0.18) : 0;
     this.view.target.set(frame.x + (p.x - frame.x) * mix, 0.5 + Math.max(0, frame.height) * 0.6,
       frame.z + (p.z - frame.z) * mix);
+    if (this.cameraCut) { this.view.focus.copy(this.view.target); this.cameraCut = false; }
     this.view.cinematic = cinematic ? { distance: 10.5 + Math.min(6, gap) * 0.6, pitch: 0.43, yaw: 0.65 } : null;
     this.view.draw(dt);
   }

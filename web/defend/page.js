@@ -13,6 +13,7 @@ import { Recording, Player, BEAT, VERDICT } from './replay.js';
 import { LiveSession } from './live.js';
 import { ProgressPanel } from './progress-panel.js';
 import { ac } from './arena-copy.js';
+import { bindSceneLayout } from './scene-layout.js';
 
 const $ = s => document.querySelector(s);
 const NT_COLOUR = {
@@ -371,6 +372,7 @@ function paintArc() {
 
 /* ----------------------------------------------------------------- wiring */
 function wire() {
+  bindSceneLayout();
   $('#btnPlay').addEventListener('click', () => {
     if (S.experiment === 'live') {
       if (!S.live?.episode) {

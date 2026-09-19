@@ -1,6 +1,11 @@
 import * as THREE from '../vendor/three/three.module.min.js';
 import { FlyRig } from './fly-rig.js';
 
+export function cameraDistance(distance, aspect, arena = false) {
+  const compensation = Math.max(1, (arena ? 1.25 : 0.95) / aspect);
+  return distance * (arena ? Math.min(1.35, compensation) : compensation);
+}
+
 export class FlyView {
   constructor(canvas, { arena = false } = {}) {
     this.canvas = canvas;
@@ -95,7 +100,7 @@ export class FlyView {
       this.pitch += (this.cinematic.pitch - this.pitch) * f;
       this.yaw += (this.cinematic.yaw - this.yaw) * f;
     }
-    const distance = this.dist * Math.max(1, (this.arena ? 1.25 : 0.95) / this.camera.aspect);
+    const distance = cameraDistance(this.dist, this.camera.aspect, this.arena);
     const horizontal = Math.cos(this.pitch) * distance;
     this.camera.position.set(this.focus.x + Math.sin(this.yaw) * horizontal,
       this.focus.y + Math.sin(this.pitch) * distance, this.focus.z + Math.cos(this.yaw) * horizontal);

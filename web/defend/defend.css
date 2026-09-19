@@ -163,8 +163,11 @@ input[type=range]::-moz-range-thumb{width:13px; height:13px; border-radius:50%;
   body.defend{display:flex;flex-direction:column;overflow:auto;height:auto;min-height:100%}
   body.defend main{display:contents}
   body.defend .top{order:0}
-  body.defend .stage{order:1;flex:none;height:clamp(480px,68svh,620px)}
-  body.defend .stage:has(.arenas.split){height:700px}
+  body.defend .stage{order:1;flex:none;height:auto}
+  body.defend .arenas{flex:none;height:max(340px,50svh)}
+  body.defend .stage[data-scene-size="large"] .arenas{height:max(440px,75svh)}
+  body.defend .arenas.split{height:max(680px,100svh)}
+  body.defend .stage[data-scene-size="large"] .arenas.split{height:max(880px,150svh)}
   body.defend .transport{order:2}
   body.defend .rail{order:3}
   .rail{border-left:0; border-top:1px solid var(--line)}
@@ -183,4 +186,46 @@ input[type=range]::-moz-range-thumb{width:13px; height:13px; border-radius:50%;
   .transport .slider{flex:1 1 100%;justify-content:space-between;min-height:34px}
   .transport .slider input{flex:1;max-width:180px}
   .auto-next{min-height:40px}
+}
+
+.scene-size{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink2)}
+.scene-size select{padding:9px;background:var(--well);color:var(--ink);border:1px solid var(--line2);border-radius:5px;min-height:44px}
+.stage .scene-toolbar button{margin-left:0;min-height:44px}
+.stage .scene-toolbar #btnCamera{margin-left:auto}
+.scene-exit{display:none}
+.scene-dialog{padding:0;border:0;margin:0;inset:0;width:100%;max-width:none;height:100vh;height:100dvh;max-height:none;background:var(--well);color:var(--ink);overflow:hidden}
+.scene-dialog[open]{display:flex;flex-direction:column}
+.scene-dialog::backdrop{background:var(--well)}
+body.defend.scene-open{overflow:hidden}
+body.defend .scene-dialog .stage{order:0;flex:1;min-height:0;height:auto}
+body.defend .scene-dialog .arenas{height:auto;min-height:0;flex:1}
+.scene-dialog .scene-toolbar{padding:8px max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));padding-top:max(8px,env(safe-area-inset-top));gap:8px}
+.scene-dialog .scene-title,.scene-dialog .scene-hint,.scene-dialog .scene-size,.scene-dialog #btnSceneFull,.scene-dialog .experiment-controls,.scene-dialog .stage-hud,.scene-dialog .survival-stats{display:none!important}
+.scene-dialog .scene-exit{display:inline-flex;align-items:center}
+.scene-dialog .scene-toolbar #btnCamera{margin-left:0;margin-right:auto}
+body.defend .scene-dialog .transport{order:1;flex:none;justify-content:center;padding:8px 12px max(8px,env(safe-area-inset-bottom));gap:10px}
+.scene-dialog .transport>:not(#btnPlay):not(#btnRestart){display:none!important}
+.scene-dialog .transport button{min-height:44px}
+.scene-dialog .pane:before,.scene-dialog .pane:after{display:none}
+.scene-dialog .pane figcaption{top:12px;left:12px}
+@media(min-width:901px){.scene-size{display:none}}
+@media(max-width:900px){
+  .stage .scene-title{flex-basis:100%}
+  .stage .scene-toolbar{padding:10px 12px;gap:8px}
+  .stage .scene-toolbar #btnCamera{margin-left:0}
+  .stage .scene-toolbar .scene-size{margin-left:auto}
+  .stage .scene-toolbar .scene-size>span{display:none}
+  .stage .arenas{order:1}
+  .stage .experiment-controls{order:2}
+  .stage .stage-hud{order:3}
+  .stage>.survival-stats{order:4}
+  .live-mode .pane:before,.live-mode .pane:after{display:none}
+  .live-mode .pane figcaption{top:12px;left:12px}
+}
+@media(orientation:landscape){.scene-dialog .arenas.split{grid-template-columns:1fr 1fr;grid-template-rows:1fr}}
+@media(max-width:900px) and (orientation:landscape){
+  body.defend .arenas{height:65svh}
+  body.defend .stage[data-scene-size="large"] .arenas{height:80svh}
+  body.defend .arenas.split,body.defend .stage[data-scene-size="large"] .arenas.split{height:140svh}
+  body.defend .scene-dialog .arenas{height:auto}
 }
