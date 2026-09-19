@@ -3,40 +3,47 @@ import { Arena3D } from '../defend/arena3d.js?v=complete1';
 import { createHomeCourtyard } from './home-scene.js';
 import { ThrowGesture } from './gesture.js';
 import { bindSceneLayout } from '../defend/scene-layout.js';
-import { BrainView } from '../js/gl.js';
+import { BrainView } from '../js/gl.js?v=profiles1';
 import { BrainInspector } from '../defend/brain-inspector.js?v=complete1';
 import { fetchGz, decodeLabels, decodePositions } from '../js/data.js';
 import { detectLocale, setLocale, getLocale, applyDom } from '../js/i18n.js';
 import { sampleEpisode } from '../defend/live.js?v=patio2';
-import { PlayStore, validateSave, LEGACY_KEY, transferLegacy } from './storage.js?v=complete1';
+import { PlayStore, validateSave, LEGACY_KEY, transferLegacy } from './storage.js?v=profiles1';
 import { Policy } from '../defend/policy.js';
 import { PROTOCOL, packPolicy, DIMENSIONS, ACTION_COUNT } from './core.js?v=complete1';
 import { makeShot, traceShot } from './physics.js?v=complete1';
-import { COPY } from './copy.js?v=complete1';
-import { formatReport } from './report.js?v=complete1';
-import { selectBrain, aimElevation, aimingFraming } from './aiming.js?v=complete1';
+import { COPY } from './copy.js?v=profiles1';
+import { formatReport } from './report.js?v=profiles1';
+import { aimElevation, aimingFraming } from './aiming.js?v=profiles1';
+import { readPreferences, savePreferences, PREFERENCES_KEY, applyGraphics } from './profiles.js';
 
 const $ = id => document.getElementById(id), c = key => COPY[getLocale()][key];
 const label = (id, value) => { const el = $(id), text = String(value); if (el.textContent !== text) el.textContent = text; };
 const seed = () => crypto.getRandomValues(new Uint32Array(1))[0];
 setLocale(new URLSearchParams(location.search).get('lang') || detectLocale());
-const brainMode = selectBrain(new URLSearchParams(location.search).get('brain'));
-const dataPath = brainMode === 'whole' ? '../data/' : '../defend/data/';
+let preferenceStorage;
+try { preferenceStorage = localStorage; } catch {}
+const preferences = readPreferences(preferenceStorage, new URLSearchParams(location.search).get('brain'));
+let brainMode = preferences.brain, graphicsMode = preferences.graphics, initStatus = 'choose';
+const dataPath = '../data/';
 let state, previous, received = 0, running = false, entered = false, busy = false, throwing = false, restoring = false;
 let renderer, brain, inspector, store, saved, pretrained, hasSaved = false, saveFailed = false;
 let trace, ring, lastPhase, lastSignal = -1, recording = [], lastReplay = null, replay = null;
 let propSignature = '', dragging = false;
 const gesture = new ThrowGesture();
 let saveQueue = Promise.resolve(), sequence = 0, lastTime = 0, lastStep = 0;
-const worker = new Worker(new URL('./play.worker.js?v=complete1', import.meta.url), { type: 'module' });
+let worker;
 const requests = new Map();
-worker.onmessage = ({ data }) => {
-  const pending = requests.get(data.id);
-  if (!pending) return;
-  requests.delete(data.id);
-  if (data.error) pending.reject(new Error(data.error)); else pending.resolve(data);
-};
-worker.onerror = e => { for (const pending of requests.values()) pending.reject(new Error(e.message)); requests.clear(); fail(); };
+function startWorker() {
+  worker = new Worker(new URL('./play.worker.js?v=profiles1', import.meta.url), { type: 'module' });
+  worker.onmessage = ({ data }) => {
+    const pending = requests.get(data.id);
+    if (!pending) return;
+    requests.delete(data.id);
+    if (data.error) pending.reject(new Error(data.error)); else pending.resolve(data);
+  };
+  worker.onerror = e => { for (const pending of requests.values()) pending.reject(new Error(e.message)); requests.clear(); fail(); };
+}
 function request(type, options = {}) {
   return new Promise((resolve, reject) => {
     const id = ++sequence; requests.set(id, { resolve, reject }); worker.postMessage({ id, type, ...options });
@@ -132,14 +139,15 @@ function paint() {
 function translate() {
   applyDom();
   for (const el of document.querySelectorAll('[data-copy]')) el.textContent = el.dataset.copy === 'evaluationText'
-    ? pretrained ? formatReport(c('evaluationText'), pretrained, getLocale(), brainMode) : c('loading') : c(el.dataset.copy);
-  label('brainModeNote', c('wholeNote'));
+    ? pretrained ? formatReport(c(brainMode === 'light' ? 'lightEvaluation' : 'evaluationText'), pretrained, getLocale(), brainMode) : c('chooseStatus') : c(el.dataset.copy);
+  label('brainMode', c(brainMode === 'light' ? 'lightMode' : 'wholeMode'));
+  label('brainModeNote', c(brainMode === 'light' ? 'lightNote' : 'wholeNote'));
   $('brain').setAttribute('aria-label', c('brainTitle'));
   $('lang').value = getLocale(); document.title = `Fly Brain · ${c('title')}`;
   $('labLink').href = `../defend/?lang=${getLocale()}`;
-  $('loading').textContent = c($('enter').disabled ? 'loading' : 'ready');
+  $('loading').textContent = c(initStatus === 'choose' ? 'chooseStatus' : initStatus === 'ready' ? 'ready' : initStatus === 'error' ? 'error' : brainMode === 'light' ? 'loadingLight' : 'loading');
   inspector?.relabel(); updateAim(); paint();
-  document.querySelector('[data-i18n="brain.provenance"]').textContent = c('brainProvenance');
+  document.querySelector('[data-i18n="brain.provenance"]').textContent = c(brainMode === 'light' ? 'lightProvenance' : 'brainProvenance');
 }
 async function throwSlipper() {
   if (!running || state?.phase !== 'aim' || replay || throwing || restoring) return;
@@ -162,7 +170,7 @@ async function replace(data) {
 function exportBackup() {
   if (!saved) return;
   const url = URL.createObjectURL(new Blob([JSON.stringify(saved)], { type: 'application/json' }));
-  const a = document.createElement('a'); a.href = url; a.download = 'fly-play-backup.json'; a.click();
+  const a = document.createElement('a'); a.href = url; a.download = `fly-play-${brainMode === 'whole' ? 'full' : 'light'}-backup.json`; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function animate(now) {
@@ -249,7 +257,41 @@ function bindAim() {
   document.addEventListener('keydown', e => { if (e.key === 'Escape') cancel(); });
 }
 
+$('profileFull').checked = brainMode === 'whole'; $('profileLight').checked = brainMode === 'light';
+$('introGraphics').value = $('graphics').value = graphicsMode;
 translate(); $('intro').showModal(); bindSceneLayout();
+function rememberChoices() {
+  let remembered = true;
+  if ($('remember').checked) remembered = savePreferences(preferenceStorage, { brain: brainMode, graphics: graphicsMode });
+  else { try { preferenceStorage?.removeItem(PREFERENCES_KEY); } catch { remembered = false; } }
+  $('preferencesError').hidden = remembered;
+}
+$('graphics').addEventListener('change', () => {
+  graphicsMode = $('graphics').value; $('introGraphics').value = graphicsMode;
+  if (renderer) applyGraphics(renderer.view, brain, graphicsMode);
+  rememberChoices();
+});
+let beforeSwitch = false;
+$('changeSetup').addEventListener('click', () => {
+  beforeSwitch = running; running = false; paint(); $('switchDialog').showModal();
+});
+function cancelSwitch() {
+  if ($('switchContinue').disabled) return;
+  $('switchDialog').close(); running = beforeSwitch && !saveFailed; paint();
+}
+$('switchCancel').addEventListener('click', cancelSwitch);
+$('switchDialog').addEventListener('cancel', e => { e.preventDefault(); cancelSwitch(); });
+$('switchContinue').addEventListener('click', async () => {
+  $('switchContinue').disabled = $('switchCancel').disabled = true;
+  running = false; paint();
+  try {
+    if (state) await request('snapshot'); await saveQueue;
+    if (!saveFailed) location.reload();
+  } catch { fail(); }
+  finally { $('switchContinue').disabled = $('switchCancel').disabled = false; $('switchDialog').close(); }
+});
+$('retry').addEventListener('click', () => location.reload());
+$('download').addEventListener('click', () => initialize());
 $('lang').addEventListener('change', () => {
   setLocale($('lang').value);
   const url = new URL(location.href); url.searchParams.set('lang', getLocale()); history.replaceState(null, '', url);
@@ -299,33 +341,47 @@ $('intro').addEventListener('cancel', e => e.preventDefault());
 $('enter').addEventListener('click', () => { entered = true; running = !saveFailed; $('intro').close(); $('btnSceneFull').focus({ preventScroll: true }); paint(); });
 document.addEventListener('visibilitychange', () => { previous = null; lastStep = performance.now(); gesture.cancel(); dragging = false; });
 
-try {
-  renderer = new Arena3D($('scene'), { courtyard: createHomeCourtyard });
-  trace = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xeb9a24, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false, fog: false, toneMapped: false }));
-  trace.renderOrder = 10; renderer.view.scene.add(trace);
-  ring = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.22, 32), new THREE.MeshBasicMaterial({ color: 0xeb9a24, side: THREE.DoubleSide, transparent: true, depthTest: false, depthWrite: false, fog: false, toneMapped: false }));
-  ring.rotation.x = -Math.PI / 2; ring.renderOrder = 11; renderer.view.scene.add(ring); bindAim();
-  let local = null;
-  try { store = new PlayStore(localStorage, brainMode); local = store.load(); hasSaved = !!local; } catch { saveFailed = true; }
-  const response = await fetch('pretrained.json?v=complete1'); if (!response.ok) throw new Error('Missing pretrained policy');
-  pretrained = await response.json(); validateSave(fresh(pretrained.policy));
-  accept(await request('init', { seed: seed(), brain: brainMode, saved: local || fresh(pretrained.policy) }), true);
-  const [m, l, p] = await Promise.all([fetchGz('./brain-data/meta.json.gz'), fetchGz(dataPath + 'labels.bin.gz'), fetchGz(dataPath + 'pos.u16.bin.gz')]);
-  const meta = JSON.parse(new TextDecoder().decode(m)), n = meta.n_neurons;
-  if (n !== state.neural.neurons || meta.n_edges !== state.neural.pairs || meta.threshold !== 1) throw new Error('Inspector and simulation must use the same anatomy');
-  const labels = decodeLabels(l, n), geom = decodePositions(p, n, meta.bbox_lo, meta.span);
-  brain = new BrainView($('brain'), geom.pos, labels.nt, geom.radius);
-  if (brainMode === 'whole') {
-    const response = await fetch(dataPath + 'position-provenance.json');
-    if (!response.ok) throw new Error('Missing position provenance');
-    brain.hideMissingPositions((await response.json()).missing);
+async function initialize() {
+  if (initStatus !== 'choose') return;
+  brainMode = $('profileLight').checked ? 'light' : 'whole'; graphicsMode = $('introGraphics').value;
+  $('graphics').value = graphicsMode;
+  rememberChoices();
+  const url = new URL(location.href); url.searchParams.delete('brain'); history.replaceState(null, '', url);
+  initStatus = 'loading'; $('setupFields').disabled = true; $('download').disabled = true; translate();
+  try {
+    startWorker();
+    renderer = new Arena3D($('scene'), { courtyard: createHomeCourtyard });
+    applyGraphics(renderer.view, null, graphicsMode);
+    trace = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xeb9a24, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false, fog: false, toneMapped: false }));
+    trace.renderOrder = 10; renderer.view.scene.add(trace);
+    ring = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.22, 32), new THREE.MeshBasicMaterial({ color: 0xeb9a24, side: THREE.DoubleSide, transparent: true, depthTest: false, depthWrite: false, fog: false, toneMapped: false }));
+    ring.rotation.x = -Math.PI / 2; ring.renderOrder = 11; renderer.view.scene.add(ring); bindAim();
+    let local = null;
+    try { store = new PlayStore(localStorage, brainMode); local = store.load(); hasSaved = !!local; } catch { saveFailed = true; }
+    const response = await fetch('pretrained.json?v=complete1'); if (!response.ok) throw new Error('Missing pretrained policy');
+    pretrained = await response.json(); validateSave(fresh(pretrained.policy));
+    accept(await request('init', { seed: seed(), brain: brainMode, saved: local || fresh(pretrained.policy) }), true);
+    const [m, l, p] = await Promise.all([fetchGz((brainMode === 'whole' ? './brain-data/' : dataPath) + 'meta.json.gz'), fetchGz(dataPath + 'labels.bin.gz'), fetchGz(dataPath + 'pos.u16.bin.gz')]);
+    const meta = JSON.parse(new TextDecoder().decode(m)), n = meta.n_neurons;
+    if (n !== state.neural.neurons || meta.n_edges !== state.neural.pairs || meta.threshold !== state.neural.threshold) throw new Error('Inspector and simulation must use the same anatomy');
+    const labels = decodeLabels(l, n), geom = decodePositions(p, n, meta.bbox_lo, meta.span);
+    brain = new BrainView($('brain'), geom.pos, labels.nt, geom.radius);
+    {
+      const response = await fetch(dataPath + 'position-provenance.json');
+      if (!response.ok) throw new Error('Missing position provenance');
+      brain.hideMissingPositions((await response.json()).missing);
+    }
+    const colors = { acetylcholine: [0.96, 0.68, 0.26], gaba: [0.28, 0.58, 0.88], glutamate: [0.64, 0.45, 0.87], dopamine: [0.35, 0.78, 0.55], serotonin: [0.90, 0.45, 0.65], octopamine: [0.30, 0.78, 0.80], unknown: [0.45, 0.52, 0.55] };
+    brain.setNTColors(meta.dicts.top_nt.map(name => colors[name] || colors.unknown));
+    inspector = new BrainInspector(brain, meta, labels, null, async focus => {
+      try { return (await request('inspect', { focus })).graph; } catch (error) { fail(); throw error; }
+    });
+    await renderer.environment.ready;
+    applyGraphics(renderer.view, brain, graphicsMode);
+    $('cinematic').checked = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    initStatus = 'ready'; $('enter').disabled = false; $('enter').hidden = false; $('download').hidden = true;
+    translate(); $('enter').focus({ preventScroll: true }); requestAnimationFrame(animate);
+  } catch {
+    worker?.terminate(); initStatus = 'error'; $('retry').hidden = false; $('download').hidden = true; translate();
   }
-  const colors = { acetylcholine: [0.96, 0.68, 0.26], gaba: [0.28, 0.58, 0.88], glutamate: [0.64, 0.45, 0.87], dopamine: [0.35, 0.78, 0.55], serotonin: [0.90, 0.45, 0.65], octopamine: [0.30, 0.78, 0.80], unknown: [0.45, 0.52, 0.55] };
-  brain.setNTColors(meta.dicts.top_nt.map(name => colors[name] || colors.unknown));
-  inspector = new BrainInspector(brain, meta, labels, null, async focus => {
-    try { return (await request('inspect', { focus })).graph; } catch (error) { fail(); throw error; }
-  });
-  await renderer.environment.ready;
-  $('cinematic').checked = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-  $('enter').disabled = false; translate(); requestAnimationFrame(animate);
-} catch { $('loading').textContent = c('error'); }
+}

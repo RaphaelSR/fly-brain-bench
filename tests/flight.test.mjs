@@ -57,6 +57,7 @@ test('throw origin is grounded and stationary while the fly explores; camera til
 test('touch aim can reach a high target from the grounded hand and defaults to the wider brain', () => {
   assert.equal(selectBrain(null), 'whole'); assert.equal(selectBrain('whole'), 'whole');
   assert.equal(selectBrain('escape'), 'whole'); assert.equal(selectBrain('unknown'), 'whole');
+  assert.equal(selectBrain('light'), 'light');
   const target = { x: 0, y: 6.52, z: 0 };
   const elevation = aimElevation(THROW_ORIGIN, target, 100);
   assert.ok(elevation > 0 && elevation <= 70);

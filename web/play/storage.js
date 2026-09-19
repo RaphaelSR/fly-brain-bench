@@ -17,7 +17,7 @@ export function transferLegacy(data, brain = 'escape') {
 
 export function validateSave(data) {
   const s = data?.stats;
-  if (data?.protocol !== PROTOCOL || !['escape', 'whole'].includes(data.brain) || !s || !['throws', 'hits', 'dodges', 'misses'].every(k => Number.isSafeInteger(s[k]) && s[k] >= 0 && s[k] < 1e9) ||
+  if (data?.protocol !== PROTOCOL || !['escape', 'whole', 'light'].includes(data.brain) || !s || !['throws', 'hits', 'dodges', 'misses'].every(k => Number.isSafeInteger(s[k]) && s[k] >= 0 && s[k] < 1e9) ||
       s.hits + s.dodges + s.misses !== s.throws) throw new Error('Invalid play backup');
   unpackPolicy(new Policy(DIMENSIONS, ACTION_COUNT), data.policy);
   unpackPolicy(new Policy(DIMENSIONS, ACTION_COUNT), data.navigationPolicy);

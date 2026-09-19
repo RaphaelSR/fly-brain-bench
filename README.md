@@ -389,7 +389,7 @@ single synapse, and together they carry only 14% of the total synaptic weight.**
 | 10 | 1,066,822 | 43.4% | 124,445 | 2.9 MB |
 | 20 | 366,864 | 26.5% | 89,793 | 1.1 MB |
 
-The original bench/laboratory build uses **≥ 5 synapses**. Current playable mode uses the complete source file (see below). That is not a free lunch, so it was checked rather
+The original bench/laboratory build uses **≥ 5 synapses**. Current playable mode defaults to the complete source file, with an explicit Light choice (see below). That is not a free lunch, so it was checked rather
 than assumed: the same LIF model was run on the sugar benchmark at each threshold
 and compared against the unpruned model.
 
@@ -575,16 +575,28 @@ aim miss 0, plus action costs. Neural anatomy stays fixed. These are game
 controllers, not complete biological intelligence, and engineered inputs prevent
 attributing behavior to the connectome alone.
 
-#### Required source-complete connectome
+#### Full / Light and source-complete connectome
 
-Play now requires **138,639 neurons, 15,091,983 directed pairs and 54,492,922
+Full (the default) uses **138,639 neurons, 15,091,983 directed pairs and 54,492,922
 aggregated synapses** from the local v783 source file. It retains every pair,
 including single-synapse connections, and preserves counts up to 2,405 rather
 than clipping them at 127. Complete means all entries of this source file,
 not complete biology.
 
-The worker validates metadata and SHA-256 payload hashes. Neither a URL parameter
-nor a loading failure can select a smaller graph. Failure is reported instead.
+The worker validates metadata and SHA-256 payload hashes. Before any graph download,
+the introduction offers Full (default) or an explicitly selected Light profile.
+Light retains all 138,639 neuron slots but uses the historical 2,700,513-pair
+package: threshold ≥5 synapses and counts capped at 127. Some neurons become
+isolated. This changes neural behavior, not only graphics. A failed download never
+silently substitutes another graph. Approximate graph downloads are 31 MB / 6.8 MB,
+not total site weight. Both profiles use the same 49 population readouts and can
+learn through the two motor policies. The `whole` save key remains Full; Light
+uses a new `light` key, so earlier Full and escape-subcircuit saves stay intact.
+Preferences are optional, remembered locally, and shown on every visit before
+loading. Changing profile reloads after pending saves; graphics can change live.
+Independent light graphics cap both canvases at pixel ratio 1 and disable scene
+shadows. Physics, connectivity and learning are unaffected. The original limits
+are 1.75 for the scene and 2 for the brain; standard graphics retain them.
 The inspector queries the same graph in that worker, avoiding a second complete
 copy. It draws at most 160 selected edges and highlights up to 1,400 cells above
 the activity threshold: these are display limits, not neural-network pruning.

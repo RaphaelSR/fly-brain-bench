@@ -1,7 +1,7 @@
 import * as THREE from '../vendor/three/three.module.min.js';
 import { cameraDistance } from '../js/fly.js';
 
-export const selectBrain = () => 'whole';
+export { selectBrain } from './profiles.js';
 
 // Low ballistic arc to the point the player touched, not the fly's future path.
 export function aimElevation(origin, point, power) {

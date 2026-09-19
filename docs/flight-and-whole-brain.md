@@ -25,16 +25,28 @@ Learning starts enabled. Disabling it freezes both heads, including normalizatio
 Navigation and escape do not update one another’s weights. The connectome itself
 never learns. The navigation imitation teacher runs only in the offline trainer.
 
-## Current playable mode: complete source graph
+## Current playable mode: Full / Light
 
-Play now requires **138,639 neurons, 15,091,983 directed pairs and 54,492,922
+Full (the default) uses **138,639 neurons, 15,091,983 directed pairs and 54,492,922
 aggregated synapses** from the local v783 source file. It retains every pair,
 including single-synapse connections, and preserves counts up to 2,405 rather
 than clipping them at 127. Complete means all entries of this source file,
 not complete biology.
 
-The worker validates metadata and SHA-256 payload hashes. Neither a URL parameter
-nor a loading failure can select a smaller graph. Failure is reported instead.
+The worker validates metadata and SHA-256 payload hashes. Before any graph download,
+the introduction offers Full (default) or an explicitly selected Light profile.
+Light retains all 138,639 neuron slots but uses the historical 2,700,513-pair
+package: threshold ≥5 synapses and counts capped at 127. Some neurons become
+isolated. This changes neural behavior, not only graphics. A failed download never
+silently substitutes another graph. Approximate graph downloads are 31 MB / 6.8 MB,
+not total site weight. Both profiles use the same 49 population readouts and can
+learn through the two motor policies. The `whole` save key remains Full; Light
+uses a new `light` key, so earlier Full and escape-subcircuit saves stay intact.
+Preferences are optional, remembered locally, and shown on every visit before
+loading. Changing profile reloads after pending saves; graphics can change live.
+Independent light graphics cap both canvases at pixel ratio 1 and disable scene
+shadows. Physics, connectivity and learning are unaffected. The original limits
+are 1.75 for the scene and 2 for the brain; standard graphics retain them.
 The inspector queries the same graph in that worker, avoiding a second complete
 copy. It draws at most 160 selected edges and highlights up to 1,400 cells above
 the activity threshold: these are display limits, not neural-network pruning.
@@ -126,7 +138,7 @@ Node 20.14.0, macOS ARM64, five warm-ups and forty observations per profile.
 A 180-biological-ms neural observation had local median / p95 times of
 4.67 / 6.88 ms for the subcircuit and 17.83 / 21.62 ms for the wider graph.
 This measures neural computation, not total application memory, browser frame
-rate or mobile performance. Those filtered profiles remain research controls; current play requires the complete graph described above.
+rate or mobile performance. Those filtered profiles remain research controls; play defaults to the complete graph and now explicitly offers the threshold-5 graph as Light.
 
 Saves are isolated as `fly-play-flight-v2-escape` and
 `fly-play-flight-v2-whole`. The old `fly-play-save-v1` is left untouched.
