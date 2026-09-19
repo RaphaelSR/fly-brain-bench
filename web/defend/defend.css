@@ -1,0 +1,105 @@
+/* Layers on top of the bench stylesheet: same palette, a different room. */
+body.defend{display:grid; grid-template-rows:auto 1fr auto; height:100%; overflow:hidden}
+body.defend main{display:grid; grid-template-columns:minmax(0,1fr) 318px; min-height:0}
+
+/* ---------- stage ---------- */
+.stage{position:relative; background:var(--well); min-width:0; display:flex; flex-direction:column}
+.arenas{flex:1; min-height:0; display:grid; grid-template-columns:1fr; gap:0}
+.arenas.split{grid-template-columns:1fr 1fr; gap:1px; background:var(--line)}
+.pane{position:relative; margin:0; min-width:0; min-height:0; background:var(--well);
+  display:flex; flex-direction:column}
+.pane[hidden]{display:none}   /* display:flex above would otherwise defeat the attribute */
+.pane canvas{flex:1; width:100%; min-height:0; display:block}
+/* one canvas can hold one kind of context, so the flat view and the 3D view are
+   separate canvases and only one of them is in the layout at a time */
+.pane canvas[hidden]{display:none}
+.pane figcaption{position:absolute; top:12px; left:14px; right:14px; display:flex;
+  align-items:baseline; gap:10px; pointer-events:none; font-size:12px}
+.pane figcaption b{font-weight:500; color:var(--ink2); letter-spacing:.02em}
+.pane figcaption span{font-family:var(--fd); font-size:15px}
+.pane figcaption span.hit{color:var(--danger)}
+.pane figcaption span.safe{color:#59C78C}
+/* the second pane is the reference, so it reads as quieter than the one you chose */
+.arenas.split #paneB{opacity:.82}
+
+.stage-hud{position:absolute; left:0; right:0; bottom:0; display:flex; gap:20px;
+  padding:9px 16px; font-size:11px; color:var(--ink3); pointer-events:none;
+  background:linear-gradient(to top,rgba(7,12,15,.92),transparent)}
+.stage-hud span:last-child{margin-left:auto}
+body.shuffled .stage-hud span:last-child{color:var(--danger)}
+
+/* ---------- rail ---------- */
+.rail{background:var(--panel); border-left:1px solid var(--line); overflow-y:auto;
+  display:flex; flex-direction:column}
+.card{padding:14px 16px; border-bottom:1px solid var(--line)}
+.card.grow{flex:1; display:flex; flex-direction:column; min-height:240px}
+.card h2{font-family:var(--fm); font-size:10px; letter-spacing:.17em; text-transform:uppercase;
+  color:var(--ink3); display:flex; align-items:center; gap:6px; margin:0 0 11px}
+.card h2 .dim{margin-left:auto; letter-spacing:0; text-transform:none}
+.cap{font-size:11.5px; color:var(--ink3); margin:9px 0 0; line-height:1.45}
+.cap b{color:var(--ink2); font-weight:500}
+
+#arcChart{width:100%; height:96px; display:block; cursor:ew-resize; touch-action:none}
+
+/* what she gave each option, and which one she took */
+.probs{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px}
+.probs li{display:grid; grid-template-columns:92px 1fr 34px; align-items:center; gap:9px;
+  font-size:11.5px; color:var(--ink3); transition:color .15s}
+/* the longest label is Spanish "inclinarse a la izquierda"; let it shrink rather
+   than wrap, so the four rows stay the same height in every language */
+.probs .pl{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.probs li.chosen{color:var(--ink)}
+.pb{height:7px; background:var(--line); border-radius:4px; overflow:hidden}
+.pb i{display:block; height:100%; width:0; border-radius:4px; background:var(--line2);
+  transition:width .22s cubic-bezier(.2,.7,.3,1), background .22s}
+.probs li.chosen .pb i{background:linear-gradient(90deg,var(--ach),var(--hot))}
+.pv{text-align:right; font-size:10.5px}
+
+.gauge{height:9px; background:var(--line); border-radius:5px; overflow:hidden}
+.gauge i{display:block; height:100%; width:0;
+  background:linear-gradient(90deg,var(--ach),#FFF1D8); transition:width .22s}
+.pair{display:grid; grid-template-columns:auto 1fr; gap:7px 10px; align-items:center; margin-top:12px}
+.pair label{font-size:11.5px; color:var(--ink2)}
+.meter{height:5px; background:var(--line); border-radius:3px; overflow:hidden}
+.meter i{display:block; height:100%; width:0; background:var(--oct); transition:width .22s}
+.meter i.warm{background:linear-gradient(90deg,#8A5F1E,var(--ach))}
+#brain{width:100%; flex:1; min-height:200px; display:block; border-radius:var(--rs); cursor:grab}
+#brain:active{cursor:grabbing}
+
+/* ---------- transport ---------- */
+.transport{display:flex; align-items:center; gap:14px; padding:10px 18px;
+  background:var(--panel); border-top:1px solid var(--line); flex-wrap:wrap}
+.transport .primary{padding:7px 18px; border-radius:var(--rs); background:var(--ach);
+  color:#1A1206; font-weight:600; font-size:12.5px; transition:.15s}
+.transport .primary:hover{background:var(--hot)}
+.transport .ghost[aria-pressed="true"]{border-color:var(--ach); color:var(--ink); background:var(--raise)}
+.transport .ghost[disabled]{opacity:.5; cursor:default}
+.scrub{flex:1; min-width:190px; display:flex; align-items:center; gap:11px; font-size:12px; color:var(--ink3)}
+.scrub input{flex:1; min-width:0}
+.slider{display:flex; align-items:center; gap:9px; font-size:12px; color:var(--ink3)}
+input[type=range]{-webkit-appearance:none; appearance:none; height:4px; border-radius:2px;
+  background:var(--line2); outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:13px; height:13px;
+  border-radius:50%; background:var(--ach); cursor:pointer; border:0}
+input[type=range]::-moz-range-thumb{width:13px; height:13px; border-radius:50%;
+  background:var(--ach); cursor:pointer; border:0}
+
+/* ---------- boot ---------- */
+.top{display:flex; align-items:center; gap:20px; padding:11px 18px;
+  background:var(--panel); border-bottom:1px solid var(--line)}
+.top a.ghost{text-decoration:none; display:inline-block}
+.boot-card{text-align:center; width:min(430px,90vw)}
+.boot-card h1{font-family:var(--fd); font-size:34px; letter-spacing:-.02em; margin:10px 0 6px}
+.sub{margin:0 0 26px; font-size:13px; color:var(--ink3)}
+.fine{font-size:11px; color:var(--ink3); margin:6px 0 0}
+.fine.err{color:var(--danger)}
+
+@media (max-width:900px){
+  body.defend{overflow:auto; height:auto; min-height:100%}
+  body.defend main{grid-template-columns:minmax(0,1fr); grid-template-rows:56vh auto}
+  .rail{border-left:0; border-top:1px solid var(--line)}
+  .top-stats{display:none}
+  .arenas.split{grid-template-columns:1fr; grid-template-rows:1fr 1fr}
+  .transport{gap:10px}
+  .scrub{order:5; flex-basis:100%}
+}

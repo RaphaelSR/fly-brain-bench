@@ -272,6 +272,13 @@ export class FlyView {
 
     this.yaw = 0.75; this.pitch = -0.26; this.dist = 3.4; this.userMoved = false;
     this.camAt = [0, 0, 0];
+    /* Three hooks, so a scenario can put her in a different world without a second
+       copy of the renderer: somewhere else for the camera to follow, a per-eye
+       glow, and a callback that runs after she is drawn with the same view matrix
+       and the same part() helper she was drawn with. */
+    this.camFocus = null;
+    this.eyeGlow = [0, 0];
+    this.onExtra = null;
     this.s = {
       pos:[0,0,0], heading:0, pitch:0, roll:0, h:H,
       speed:0, turn:0, gait:0, wing:0, wingPhase:0,
@@ -381,8 +388,10 @@ export class FlyView {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
 
-    // camera trails the fly instead of being glued to it
-    for (let a = 0; a < 3; a++) this.camAt[a] += (s.pos[a] - this.camAt[a]) * 0.16;
+    // camera trails the fly — or whatever the scenario points it at — instead of
+    // being glued to it
+    const follow = this.camFocus || s.pos;
+    for (let a = 0; a < 3; a++) this.camAt[a] += (follow[a] - this.camAt[a]) * 0.16;
     if (!this.userMoved) this.yaw += 0.0022;
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
     const focus = [this.camAt[0], this.camAt[1] + 0.22, this.camAt[2]];
@@ -450,8 +459,10 @@ export class FlyView {
     part(this.sphere, local(M.mul(M.translate([0, 0.02, 0.03]), M.scaleRot([0.255, 0.245, 0.34]))), COL.thorax, 1, 0, 0.45);
     part(this.sphere, local(M.mul(M.translate([0, headY, 0.30]), M.scaleRot([0.215, 0.205, 0.185]))), COL.head);
     for (const sd of [-1, 1]) {
+      const glow = this.eyeGlow[sd < 0 ? 0 : 1] || 0;
       part(this.sphere, local(M.mul(M.translate([sd * 0.085, headY + 0.02, 0.325]),
-        M.scaleRot([0.125, 0.16, 0.14]))), COL.eye, 1, 0.14, 0.8, 1);
+        M.scaleRot([0.125 + glow * 0.02, 0.16 + glow * 0.02, 0.14 + glow * 0.02]))),
+        COL.eye, 1, 0.14 + glow * 1.5, 0.8, 1);
       // antenna: a short pedicel and the arista
       const a0 = [sd * 0.045, headY - 0.03, 0.40], a1 = [sd * 0.075, headY - 0.10, 0.45];
       part(this.sphere, M.bone(L2W(a0), L2W(a1), 0.030), COL.antenna);
@@ -524,6 +535,9 @@ export class FlyView {
       wingPart(m, 0.50 + fly * 0.22);
     }
     gl.disable(gl.BLEND);
+    // whatever else belongs in this world, drawn with the same camera and the
+    // same shading she was drawn with
+    this.onExtra?.(vp, eye, part);
     gl.bindVertexArray(null);
   }
 }
