@@ -566,7 +566,7 @@ and escape actions from 49 neural features plus 27 engineered present/past body,
 threat, obstacle, boundary and goal measurements. Random 3D exploration goals are
 artificial task objectives, not biological drives. The runtime never calls the
 navigation teacher: imitation is offline only. The camera and throw origin
-follow exploration; the projectile origin freezes at release.
+have independent roles: the camera reframes exploration at a fixed height while the hand stays at a fixed courtyard location. Touch aiming adjusts elevation, including upward throws (up to 70°); the origin no longer follows the fly.
 
 Learning starts enabled, including navigation episodes, and can be frozen for
 both heads. Navigation rewards bounded progress toward the current goal and
@@ -575,8 +575,8 @@ aim miss 0, plus action costs. Neural anatomy stays fixed. These are game
 controllers, not complete biological intelligence, and engineered inputs prevent
 attributing behavior to the connectome alone.
 
-Select **Wider brain · experimental** (or `?brain=whole`) to run the existing
-138,639-neuron, 2,700,513-pair package instead of the 6,203-neuron escape subcircuit.
+The default **Wider brain · experimental** (also `?brain=whole`) runs the existing
+138,639-neuron, 2,700,513-pair package with the 6,203-neuron escape subcircuit available as the lightweight `?brain=escape` option.
 Its 49 feature populations use full-package indices in exactly the same feature
 order. The large package is thresholded at ≥5 synapses per pair, not an unfiltered
 brain; the subcircuit uses ≥8. Fourteen cells without annotated positions are

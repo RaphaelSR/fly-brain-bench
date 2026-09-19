@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { PlayWorld, MAX_ALTITUDE } from '../web/play/world.js';
-import { PlaySession, sense, packPolicy, DIMENSIONS, ACTION_COUNT } from '../web/play/core.js';
+import { PlaySession, sense, packPolicy, DIMENSIONS, ACTION_COUNT, THROW_ORIGIN } from '../web/play/core.js';
+import { selectBrain, aimElevation, aimingFraming } from '../web/play/aiming.js';
+import { cameraDistance } from '../web/js/fly.js';
+import { makeShot, traceShot } from '../web/play/physics.js';
 import { transferLegacy, PlayStore, LEGACY_KEY, validateSave } from '../web/play/storage.js';
 import { loadRig } from '../tools/rig.mjs';
 const step = (w, seconds) => { for (let i = 0; i < seconds * 120; i++) w.step(); };
@@ -35,7 +38,31 @@ test('navigation learning is separate from escape weights and runs outside throw
   step(s, 4); assert.equal(s.stats.throws, 0); assert.ok(s.navigationPolicy.episodes > 0);
   assert.deepEqual(packPolicy(s.policy), escape);
   s.learning = false; const before = s.save(); step(s, 4); assert.deepEqual(s.save(), before);
-  s.world.height = 6; s.positionThrower(); assert.ok(s.origin.y <= 7.4);
+  s.world.height = 6; s.positionThrower(); assert.deepEqual(s.origin, THROW_ORIGIN);
+});
+test('throw origin is grounded and stationary while the fly explores; camera tilts without rising', () => {
+  const s = new PlaySession(loadRig({ seed: 13 }));
+  for (const [x, height, z] of [[0, 0, 0], [10, 6, -10], [-12, 3, 14]]) {
+    Object.assign(s.world, { x, height, z }); s.positionThrower();
+    assert.deepEqual(s.origin, THROW_ORIGIN);
+    for (const aspect of [390 / 844, 844 / 390, 1]) {
+      const camera = aimingFraming(s.world, s.origin, aspect);
+      assert.ok(Math.abs(camera.target.y + Math.sin(camera.pitch) * cameraDistance(camera.distance, aspect, true) - 5.2) < 1e-9);
+    }
+  }
+  s.throw({ aim: { x: 0, z: 0 }, power: 100, elevation: 60 }, { learning: false });
+  const launch = { ...s.episode.launch }; step(s, 0.3);
+  assert.deepEqual(s.episode.launch, launch); assert.equal(s.episode.grounded, true);
+});
+test('touch aim can reach a high target from the grounded hand and defaults to the wider brain', () => {
+  assert.equal(selectBrain(null), 'whole'); assert.equal(selectBrain('whole'), 'whole');
+  assert.equal(selectBrain('escape'), 'escape'); assert.equal(selectBrain('unknown'), 'whole');
+  const target = { x: 0, y: 6.52, z: 0 };
+  const elevation = aimElevation(THROW_ORIGIN, target, 100);
+  assert.ok(elevation > 0 && elevation <= 70);
+  const points = traceShot(makeShot(THROW_ORIGIN, target, 100, elevation)).points;
+  assert.ok(Math.min(...points.map(p => Math.hypot(p.x - target.x, p.y - target.y, p.z - target.z))) < 0.3);
+  assert.ok(Number.isFinite(aimElevation(THROW_ORIGIN, { x: 16, y: 30, z: -16 }, 25)));
 });
 test('legacy transfer pads weights, clears stale optimizer and never overwrites original or other brain saves', async () => {
   const prior = JSON.parse(readFileSync(new URL('../tools/fixtures/patio-v2.json', import.meta.url)));

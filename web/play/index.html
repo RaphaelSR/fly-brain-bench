@@ -4,7 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Fly Brain · Você contra a mosca</title>
 <meta name="description" content="Mire, ajuste a força e arremesse um chinelo 3D. Uma política treinada tenta escapar usando atividade neural simulada e sinais visuais construídos.">
-<link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="../defend/defend.css?v=patio2"><link rel="stylesheet" href="play.css?v=flight3">
+<link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="../defend/defend.css?v=patio2"><link rel="stylesheet" href="play.css?v=grounded1">
 </head>
 <body class="play live-mode">
 <dialog id="intro" aria-labelledby="introTitle"><p class="eyebrow">FLY BRAIN · PLAY</p><h1 id="introTitle" data-copy="title"></h1><p data-copy="intro"></p><p id="loading" role="status"></p><button id="enter" class="primary" disabled data-copy="enter"></button><p class="fine" data-copy="sensesText"></p></dialog>
@@ -19,7 +19,7 @@
 <div class="aim-sliders">
 <label><span data-copy="direction"></span><output id="directionValue"></output><input id="direction" type="range" min="-65" max="65" step="1" value="0"></label>
 <label><span data-copy="power"></span><output id="powerValue"></output><input id="power" type="range" min="25" max="100" step="1" value="65"></label>
-<label><span data-copy="elevation"></span><output id="elevationValue"></output><input id="elevation" type="range" min="-35" max="40" step="1" value="-12"></label>
+<label><span data-copy="elevation"></span><output id="elevationValue"></output><input id="elevation" type="range" min="-35" max="70" step="1" value="-12"></label>
 </div>
 <div class="actions"><button id="btnThrow" class="primary" disabled data-copy="throw"></button><button id="btnPlay" class="ghost" data-copy="pause"></button><button id="btnReplay" class="ghost" disabled data-copy="replay"></button></div>
 </footer>
@@ -59,5 +59,5 @@
 </main>
 <section class="methods"><details><summary data-copy="method"></summary><p data-copy="methodText"></p></details><details><summary data-copy="senses"></summary><p data-copy="sensesText"></p></details><details><summary data-copy="evaluation"></summary><p data-copy="evaluationText"></p><a href="pretrained.json" data-copy="report"></a> · <a href="https://github.com/RaphaelSR/fly-brain-bench/blob/main/tools/train-play.mjs" data-copy="audit"></a> · <a href="brain-benchmark.json" data-copy="brainBenchmark"></a> · <a href="https://github.com/RaphaelSR/fly-brain-bench/blob/main/docs/flight-and-whole-brain.md" data-copy="research"></a></details></section>
 <dialog id="sceneDialog" class="scene-dialog" aria-labelledby="btnSceneFull"></dialog>
-<script type="module" src="page.js?v=flight3"></script>
+<script type="module" src="page.js?v=grounded1"></script>
 </body></html>

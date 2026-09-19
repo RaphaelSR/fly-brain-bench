@@ -94,8 +94,8 @@ export class Arena3D {
     this.hand.visible = frame.t < 1.1;
     const withdraw = Math.max(0, frame.t - 0.5) * 5;
     this.hand.position.set(episode.launch.x + Math.sin(episode.angle) * withdraw,
-      episode.launch.y + 0.3 + withdraw, episode.launch.z + Math.cos(episode.angle) * withdraw);
-    this.hand.rotation.set(-Math.min(0.6, frame.t) * 0.5, episode.angle, -0.12);
+      episode.launch.y + 0.3 + (episode.grounded ? 0 : withdraw), episode.launch.z + Math.cos(episode.angle) * withdraw);
+    this.hand.rotation.set(episode.grounded ? 0 : -Math.min(0.6, frame.t) * 0.5, episode.angle, -0.12);
     const gap = Math.hypot(p.x - frame.x, p.z - frame.z);
     const portrait = this.c.clientWidth < this.c.clientHeight;
     const mix = frame.t < episode.approach + 0.55 ? (portrait ? 0.08 : 0.18) : 0;

@@ -9,7 +9,7 @@ const bounded = (v, lo, hi) => typeof v === 'number' && Number.isFinite(v) && v 
 export function makeShot(origin, aim, power, elevation) {
   if (!origin || !aim || !bounded(origin.x, -24, 24) || !bounded(origin.z, -24, 24) ||
       !bounded(origin.y, 0.1, 8) || !bounded(aim.x, -16, 16) || !bounded(aim.z, -16, 16) ||
-      !bounded(power, 25, 100) || !bounded(elevation, -35, 40)) throw new Error('Invalid shot');
+      !bounded(power, 25, 100) || !bounded(elevation, -35, 70)) throw new Error('Invalid shot');
   const dx = aim.x - origin.x, dz = aim.z - origin.z, length = Math.hypot(dx, dz);
   if (length < 0.25) throw new Error('Aim farther from the thrower');
   const speed = 4 + power * 0.095, angle = elevation * Math.PI / 180;
